@@ -364,15 +364,19 @@
 
 			function saveState() {
 				const data = timerStates.map(s => s.pressTime ? s.pressTime.toISOString() : null);
+
 				localStorage.setItem(PRESS_TIMES_KEY, JSON.stringify(data));
 			}
 
 			function loadState() {
 				try {
 					const raw = localStorage.getItem(PRESS_TIMES_KEY);
-					if (!raw) return;
+
+					if (!raw)
+						return;
 
 					const data = JSON.parse(raw);
+
 					data.forEach((iso, i) => {
 						if (iso && timerStates[i]) {
 							timerStates[i].pressTime = new Date(iso);
@@ -390,19 +394,26 @@
 					delayMinutes: delayMinutesInput.value,
 					randomization: randomizationInput.value
 				};
+
 				localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 			}
 
 			function loadSettings() {
 				try {
 					const raw = localStorage.getItem(SETTINGS_KEY);
-					if (!raw) return;
+					if (!raw)
+						return;
 
 					const settings = JSON.parse(raw);
-					if (settings.channels !== undefined) channelInput.value = settings.channels;
-					if (settings.delayHours !== undefined) delayHoursInput.value = settings.delayHours;
-					if (settings.delayMinutes !== undefined) delayMinutesInput.value = settings.delayMinutes;
-					if (settings.randomization !== undefined) randomizationInput.value = settings.randomization;
+
+					if (settings.channels !== undefined)
+						channelInput.value = settings.channels;
+					if (settings.delayHours !== undefined)
+						delayHoursInput.value = settings.delayHours;
+					if (settings.delayMinutes !== undefined)
+						delayMinutesInput.value = settings.delayMinutes;
+					if (settings.randomization !== undefined)
+						randomizationInput.value = settings.randomization;
 				} catch (e) {
 					console.warn('Could not load saved settings:', e);
 				}
@@ -716,7 +727,7 @@
 					const respawnAvgTime = new Date(timerState.pressTime.getTime() + respawnDelay);
 					const timeRemaining = respawnAvgTime.getTime() - new Date().getTime();
 
-					if (hasSpawned <= 0)
+					if (timeRemaining <= 0)
 						hasSpawned = true;
 
 					list.push({ channel: i + 1, timeRemaining: timeRemaining })
