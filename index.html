@@ -271,8 +271,12 @@
 				const respawnMaxLabel = timerContainer.querySelector('#respawnMaxLabel');
 				const countdownLabel = timerContainer.querySelector('#countdownLabel');
 
-				if (recordInput)
-					recordInput.value = pressTime.toLocaleTimeString(undefined, { timeStyle: 'short' });
+				if (recordInput) {
+					const hours = String(pressTime.getHours()).padStart(2, '0');
+					const minutes = String(pressTime.getMinutes()).padStart(2, '0');
+
+					recordInput.value = `${hours}:${minutes}`;
+				}
 
 				if (recordLabel)
 					recordLabel.textContent = `Recorded: ${pressTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
