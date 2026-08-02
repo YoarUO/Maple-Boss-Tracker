@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Channel Respawn Matrix Tracking Dashboard</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 20px;
+			background-color: #fdfdfd;
+		}
+
+		.form-group {
+			margin-bottom: 12px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		label.main-label {
+			font-weight: bold;
+			min-width: 150px;
+		}
+
+		input {
+			padding: 5px;
+		}
+
+		.input-channels,
+		.input-time,
+		.input-random {
+			width: 60px;
+		}
+
+		.time-unit-label {
+			font-size: 14px;
+			color: #333;
+			margin-right: 10px;
+		}
+
+		#buttonContainer {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 10px;
+			margin-top: 25px;
+		}
+
+		.timer-row {
+			display: flex;
+			align-items: center;
+			gap: 20px;
+			padding: 4px 0;
+		}
+
+		button {
+			padding: 10px 15px;
+			font-size: 14px;
+			cursor: pointer;
+			min-width: 120px;
+		}
+
+		.press-label {
+			font-size: 14px;
+			color: #555;
+			font-weight: bold;
+			min-width: 160px;
+		}
+
+		.respawn-label {
+			font-size: 14px;
+			color: #d32f2f;
+			font-weight: bold;
+			min-width: 320px;
+		}
+
+		.countdown-label {
+			font-size: 14px;
+			color: #007bff;
+			font-weight: bold;
+			min-width: 170px;
+		}
+
+		.range-label {
+			font-size: 14px;
+			color: #666;
+			font-weight: 500;
+			min-width: 200px;
+		}
+
+		.ready-state {
+			color: #2e7d32;
+		}
+	</style>
+</head>
+
+<body>
+
+	<!-- Configuration Panel -->
+	<div id="channelInputContainer"></div>
+
+	<script>
+		const minChannels = 1;
+		const maxChannels = 12;
+		const defaultChannels = 6;
+
+		function createChannelInput() {
+			return `
+				<div class="form-group">
+					<label for="channelInput" class="main-label">Channels (${minChannels}-${maxChannels}): </label>
+					<input type="number" id="channelInput" class="input-channels" min="${minChannels}" max="${maxChannels}}" value="${defaultChannels}">
+				</div>
+			`;
+		}
+
+		const channelInputContainer = document.getElementById('channelInputContainer');
+		channelInputContainer.innerHTML = createChannelInput();
+	</script>
+
+	<div class="form-group">
+		<label class="main-label">Respawn Delay: </label>
+		<input type="number" id="delayHoursInput" class="input-time" min="0" step="1" value="1">
+		<span class="time-unit-label">hr</span>
+		<input type="number" id="delayMinutesInput" class="input-time" min="0" max="59" step="1" value="0">
+		<span class="time-unit-label">min</span>
+	</div>
+
+	<div class="form-group">
+		<label for="randomizationInput" class="main-label">Randomization: </label>
+		<input type="number" id="randomizationInput" class="input-random" min="0" max="100" step="1" value="15">
+		<span class="time-unit-label">%</span>
+	</div>
+
+	<!-- Live Channel Matrix -->
+	<div id="timerContainer"></div>
+
+	<script>
+		const channelInput = document.getElementById('channelInput');
+		const delayHoursInput = document.getElementById('delayHoursInput');
+		const delayMinutesInput = document.getElementById('delayMinutesInput');
+		const randomizationInput = document.getElementById('randomizationInput');
+		const timersContainer = document.getElementById('timerContainer');
+
+		const timerStates = [];
+
+		for (let i = 0; i < maxChannels; i++) {
+			timerStates.push({
+				pressTime: null,
+				IntervalId: null
+			});
+		}
+
+		function updateInterval(countdownLabel, timerState) {
+			if (timerState.pressTime === null)
+				return;
+
+			let respawnHours = parseInt(delayHoursInput.value) || 0;
+			let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
+
+			const pressTime = timerState.pressTime;
+
+			const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
+			const respawnAvgTime = new Date(pressTime.getTime() + respawnDelay);
+			const now = new Date();
+			const timeDifference = respawnAvgTime.getTime() - now.getTime();
+
+			if (now >= respawnAvgTime) {
+				countdownLabel.textContent = "(Ready!)";
+				countdownLabel.className = 'countdown-label ready-state';
+				clearInterval(timerState.IntervalId);
+				timerState.IntervalId = null;
+			} else {
+				if (timeDifference <= 0) {
+					countdownLabel.textContent = "(~0s remaining)";
+					return;
+				}
+
+				const hRemaining = Math.floor(timeDifference / (1000 * 60 * 60));
+				const mRemaining = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+				const sRemaining = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+				let timeString = '';
+				if (hRemaining > 0)
+					timeString += `${hRemaining}h `;
+				if (mRemaining > 0 || hRemaining > 0)
+					timeString += `${mRemaining}m `;
+				timeString += `${sRemaining}s remaining`;
+
+				countdownLabel.textContent = `(~${timeString})`;
+			}
+		}
+
+		function updateTimer(timerContainer, timerState) {
+			if (timerState.pressTime === null)
+				return;
+
+			let respawnHours = parseInt(delayHoursInput.value) || 0;
+			let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
+			let randomizationPerc = parseInt(randomizationInput.value) || 0;
+
+			const pressTime = timerState.pressTime;
+			const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
+			const respawnVariation = randomizationPerc * respawnDelay / 100;
+			const respawnAvgTime = new Date(pressTime.getTime() + respawnDelay);
+			const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
+			const respawnMaxTime = new Date(respawnAvgTime.getTime() + respawnVariation);
+
+			const pressLabel = timerContainer.querySelector('#pressLabel');
+			if (pressLabel)
+				pressLabel.textContent = pressTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+			const respawnAvgLabel = timerContainer.querySelector('#respawnAvgLabel');
+			if (respawnAvgLabel)
+				respawnAvgLabel.textContent = `Respawns At Approximately: ${respawnAvgTime.toLocaleTimeString()}`;
+			const respawnMinLabel = timerContainer.querySelector('#respawnMinLabel');
+			if (respawnMinLabel)
+				respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString()}`;
+			const respawnMaxLabel = timerContainer.querySelector('#respawnMaxLabel');
+			if (respawnMaxLabel)
+				respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString()}`;
+			const countdownLabel = timerContainer.querySelector('#countdownLabel');
+			if (countdownLabel) {
+				updateInterval(countdownLabel, timerState);
+				timerState.IntervalId = setInterval(updateInterval, 1000, countdownLabel, timerState);
+			}
+		}
+
+		function createTimerContainer(index) {
+			const timerContainer = document.createElement('div');
+			timerContainer.className = 'timer-row';
+			timerContainer.dataset.channelIndex = index;
+
+			const recordButton = document.createElement('button');
+			recordButton.textContent = `Channel ${index}`;
+
+			const pressLabel = document.createElement('span');
+			pressLabel.id = 'pressLabel';
+			pressLabel.className = 'press-label';
+
+			const respawnAvgLabel = document.createElement('span');
+			respawnAvgLabel.id = 'respawnAvgLabel';
+			respawnAvgLabel.className = 'respawn-label';
+
+			const respawnMinLabel = document.createElement('span');
+			respawnMinLabel.id = 'respawnMinLabel';
+			respawnMinLabel.className = 'range-label';
+
+			const respawnMaxLabel = document.createElement('span');
+			respawnMaxLabel.id = 'respawnMaxLabel';
+			respawnMaxLabel.className = 'range-label';
+
+			const countdownLabel = document.createElement('span');
+			countdownLabel.id = 'countdownLabel';
+			countdownLabel.className = 'countdown-label';
+
+			const timerState = timerStates[index];
+
+			recordButton.addEventListener('click', () => {
+				timerState.pressTime = new Date();
+				updateTimer(timerContainer, timerState);
+			});
+
+			timerContainer.appendChild(recordButton);
+			timerContainer.appendChild(pressLabel);
+			timerContainer.appendChild(respawnAvgLabel);
+			timerContainer.appendChild(respawnMinLabel);
+			timerContainer.appendChild(respawnMaxLabel);
+			timerContainer.appendChild(countdownLabel);
+
+			return timerContainer;
+		}
+
+		function createTimers() {
+			let channelCount = parseInt(channelInput.value) || defaultChannels;
+
+			if (channelCount < minChannels)
+				channelCount = minChannels;
+			else if (channelCount > maxChannels)
+				channelCount = maxChannels;
+
+			channelInput.value = channelCount;
+
+			const currentCount = timersContainer.getElementsByClassName('timer-row').length;
+
+			if (channelCount > currentCount) {
+				for (let i = currentCount; i < channelCount; i++) {
+					timersContainer.appendChild(createTimerContainer(i));
+				}
+			} else if (channelCount < currentCount) {
+				while (timersContainer.getElementsByClassName('timer-row').length > channelCount) {
+					const lastRow = timersContainer.lastElementChild;
+					const index = parseInt(lastRow.dataset.channelIndex);
+					if (timerStates[index].channelId) {
+						clearInterval(timerStates[index].channelId);
+						timerStates[index].channelId = null;
+					}
+					timersContainer.removeChild(lastRow);
+				}
+			}
+		}
+
+		function UpdateTimers() {
+			children = timersContainer.getElementsByClassName('timer-row');
+			for (let i = 0; i < children.length; i++) {
+				updateTimer(children[i], timerStates[i]);
+			}
+		}
+
+		channelInput.addEventListener('input', createTimers);
+		delayHoursInput.addEventListener('change', () => {
+			if (parseInt(delayHoursInput.value) < 0)
+				delayHoursInput.value = 0;
+			UpdateTimers();
+		});
+		delayMinutesInput.addEventListener('change', () => {
+			let minutes = parseInt(delayMinutesInput.value);
+			if (minutes < 0)
+				delayMinutesInput.value = 0;
+			else if (minutes > 59)
+				delayMinutesInput.value = 59;
+			UpdateTimers();
+		});
+		randomizationInput.addEventListener('change', () => {
+			let randomization = parseInt(randomizationInput.value);
+			if (randomization < 0)
+				randomizationInput.value = 0;
+			else if (randomization > 100)
+				randomizationInput.value = 100;
+			UpdateTimers();
+		});
+
+		createTimers();
+
+	</script>
+</body>
+
+</html>
