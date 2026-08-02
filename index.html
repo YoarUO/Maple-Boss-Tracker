@@ -20,8 +20,12 @@
 			--text-muted: #5b6472;
 			--maple-gold: #e3b341;
 			--maple-gold-dim: #8a6a24;
+			--info-blue: #0284c7;
 			--ready-green: #4fd97b;
+			--warning-orange: #f39c12;
+			--info-glow: rgba(2, 132, 199, 0.18);
 			--ready-glow: rgba(79, 217, 123, 0.18);
+			--warning-glow: rgba(243, 156, 18, 0.18);
 			--font-display: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 			--font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 		}
@@ -172,9 +176,31 @@
 			transition: border-color 0.2s ease;
 		}
 
-		.timer-container.is-ready {
+		.timer-container.is-available {
+			border-color: var(--info-blue);
+			box-shadow: 0 0 0 1px var(--info-glow), 0 0 24px -6px var(--info-glow);
+		}
+
+		span.is-available {
+			color: var(--info-blue);
+		}
+
+		.timer-container.is-elapsed {
 			border-color: var(--ready-green);
 			box-shadow: 0 0 0 1px var(--ready-glow), 0 0 24px -6px var(--ready-glow);
+		}
+
+		span.is-elapsed {
+			color: var(--ready-green);
+		}
+
+		.timer-container.is-completed {
+			border-color: var(--warning-orange);
+			box-shadow: 0 0 0 1px var(--warning-glow), 0 0 24px -6px var(--warning-glow);
+		}
+
+		span.is-completed {
+			color: var(--warning-orange);
 		}
 
 		.timer-container .row-top {
@@ -242,10 +268,6 @@
 			font-weight: 700;
 			min-width: unset;
 			letter-spacing: 0.01em;
-		}
-
-		.ready-state {
-			color: var(--ready-green);
 		}
 
 		.clear-btn {
@@ -457,23 +479,53 @@
 
 				let respawnHours = parseInt(delayHoursInput.value) || 0;
 				let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
+				let randomizationPerc = parseInt(randomizationInput.value) || 0;
 
 				const pressTime = timerState.pressTime;
 
 				const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
+				const respawnVariation = randomizationPerc * respawnDelay / 100;
 				const respawnAvgTime = new Date(pressTime.getTime() + respawnDelay);
+				const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
+				const respawnMaxTime = new Date(respawnAvgTime.getTime() + respawnVariation);
 				const now = new Date();
 				const timeRemaining = respawnAvgTime.getTime() - now.getTime();
 
+				// TODO: Cleaner way to do this?
+				if (now < respawnMinTime) {
+					countdownLabel.classList.remove('is-available');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-available');
+					countdownLabel.classList.remove('is-elapsed');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-elapsed');
+					countdownLabel.classList.remove('is-completed');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-completed');
+				} else if (now < respawnAvgTime) {
+					countdownLabel.classList.remove('is-elapsed');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-elapsed');
+					countdownLabel.classList.remove('is-completed');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-completed');
+					countdownLabel.classList.add('is-available');
+					countdownLabel.closest('.timer-container')?.classList.add('is-available');
+				} else if (now < respawnMaxTime) {
+					countdownLabel.classList.remove('is-available');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-available');
+					countdownLabel.classList.remove('is-completed');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-completed');
+					countdownLabel.classList.add('is-elapsed');
+					countdownLabel.closest('.timer-container')?.classList.add('is-elapsed');
+				} else {
+					countdownLabel.closest('.timer-container')?.classList.remove('is-available');
+					countdownLabel.classList.remove('is-elapsed');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-elapsed');
+					countdownLabel.classList.add('is-completed');
+					countdownLabel.closest('.timer-container')?.classList.add('is-completed');
+				}
+
 				if (timeRemaining <= 0) {
 					countdownLabel.textContent = "Ready!";
-					countdownLabel.classList.add('ready-state');
-					countdownLabel.closest('.timer-container')?.classList.add('is-ready');
 					clearInterval(timerState.IntervalId);
 					timerState.IntervalId = null;
 				} else {
-					countdownLabel.classList.remove('ready-state');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
 					countdownLabel.textContent = `Remaining: ${formatTimeSpan(timeRemaining)}`;
 				}
 			}
@@ -550,12 +602,16 @@
 
 				if (countdownLabel) {
 					countdownLabel.textContent = '';
-					countdownLabel.classList.remove('ready-state');
+					countdownLabel.classList.remove('is-available');
+					countdownLabel.classList.remove('is-elapsed');
+					countdownLabel.classList.remove('is-completed');
 					clearInterval(timerState.IntervalId);
 					timerState.IntervalId = null;
 				}
 
-				timerContainer.classList.remove('is-ready');
+				timerContainer.classList.remove('is-available');
+				timerContainer.classList.remove('is-elapsed');
+				timerContainer.classList.remove('is-completed');
 				timerState.pressTime = null;
 			}
 
@@ -711,8 +767,8 @@
 			const originalTitle = document.title;
 
 			function formatDocumentTitle() {
+				var isAvailable = false;
 				const list = [];
-				var hasSpawned = false;
 
 				for (let i = 0; i < timerStates.length; i++) {
 					const timerState = timerStates[i];
@@ -722,13 +778,17 @@
 
 					let respawnHours = parseInt(delayHoursInput.value) || 0;
 					let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
+					let randomizationPerc = parseInt(randomizationInput.value) || 0;
 
 					const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
+					const respawnVariation = randomizationPerc * respawnDelay / 100;
 					const respawnAvgTime = new Date(timerState.pressTime.getTime() + respawnDelay);
-					const timeRemaining = respawnAvgTime.getTime() - new Date().getTime();
+					const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
+					const now = new Date();
+					const timeRemaining = respawnAvgTime.getTime() - now.getTime();
 
-					if (timeRemaining <= 0)
-						hasSpawned = true;
+					if (now >= respawnMinTime)
+						isAvailable = true;
 
 					list.push({ channel: i + 1, timeRemaining: timeRemaining })
 				}
@@ -742,7 +802,7 @@
 
 				var result = '';
 
-				if (hasSpawned)
+				if (isAvailable)
 					result += '⚠️';
 				else
 					result += '⌚';
