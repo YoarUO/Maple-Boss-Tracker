@@ -273,13 +273,42 @@
 				gap: 14px;
 			}
 		}
+
+		.page-footer {
+			margin-top: 28px;
+			padding-top: 20px;
+			border-top: 1px solid var(--hairline);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			text-align: center;
+		}
+
+		.footer-text {
+			font-size: 13px;
+			line-height: 1.6;
+			color: var(--text-secondary);
+			margin: 0 0 10px;
+			max-width: 560px;
+		}
+
+		.footer-text:last-child {
+			margin-bottom: 0;
+		}
+
+		.footer-text strong {
+			color: var(--text-primary);
+			font-weight: 700;
+		}
 	</style>
 </head>
 
 <body>
 	<div class="header-container">
 		<svg class="maple-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-			<path d="M12 1.5c.6 1.7 1 2.9 2 3.4.7-1 1.3-1.7 2.5-2-.1 1.3-.2 2.1.3 3.2 1-.5 1.7-.9 3-.8-.6 1.1-1 1.9-.9 3.1 1.1 0 1.9.1 2.9.8-1 .8-1.7 1.3-2 2.4 1 .3 1.7.6 2.4 1.6-1.2.4-2 .5-2.7 1.4.7.8 1.1 1.4 1.2 2.5-1.2-.2-2-.4-2.9.1.3 1 .5 1.8.1 2.9-1-.6-1.6-1.1-2.7-1-.1 1.1 0 1.9-.6 2.8-.8-.8-1.3-1.5-2.4-1.7-.2 1.1-.2 1.9-1 2.8-.8-.9-.8-1.7-1-2.8-1.1.2-1.6.9-2.4 1.7-.6-.9-.5-1.7-.6-2.8-1.1-.1-1.7.4-2.7 1-.4-1.1-.2-1.9.1-2.9-.9-.5-1.7-.3-2.9-.1.1-1.1.5-1.7 1.2-2.5-.7-.9-1.5-1-2.7-1.4.7-1 1.4-1.3 2.4-1.6-.3-1.1-1-1.6-2-2.4 1-.7 1.8-.8 2.9-.8.1-1.2-.3-2-.9-3.1 1.3-.1 2 .3 3 .8.5-1.1.4-1.9.3-3.2 1.2.3 1.8 1 2.5 2 1-.5 1.4-1.7 2-3.4z" fill="currentColor" />
+			<path
+				d="M12 1.5c.6 1.7 1 2.9 2 3.4.7-1 1.3-1.7 2.5-2-.1 1.3-.2 2.1.3 3.2 1-.5 1.7-.9 3-.8-.6 1.1-1 1.9-.9 3.1 1.1 0 1.9.1 2.9.8-1 .8-1.7 1.3-2 2.4 1 .3 1.7.6 2.4 1.6-1.2.4-2 .5-2.7 1.4.7.8 1.1 1.4 1.2 2.5-1.2-.2-2-.4-2.9.1.3 1 .5 1.8.1 2.9-1-.6-1.6-1.1-2.7-1-.1 1.1 0 1.9-.6 2.8-.8-.8-1.3-1.5-2.4-1.7-.2 1.1-.2 1.9-1 2.8-.8-.9-.8-1.7-1-2.8-1.1.2-1.6.9-2.4 1.7-.6-.9-.5-1.7-.6-2.8-1.1-.1-1.7.4-2.7 1-.4-1.1-.2-1.9.1-2.9-.9-.5-1.7-.3-2.9-.1.1-1.1.5-1.7 1.2-2.5-.7-.9-1.5-1-2.7-1.4.7-1 1.4-1.3 2.4-1.6-.3-1.1-1-1.6-2-2.4 1-.7 1.8-.8 2.9-.8.1-1.2-.3-2-.9-3.1 1.3-.1 2 .3 3 .8.5-1.1.4-1.9.3-3.2 1.2.3 1.8 1 2.5 2 1-.5 1.4-1.7 2-3.4z"
+				fill="currentColor" />
 			<path d="M12 14.5V22" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
 		</svg>
 		<div>
@@ -327,10 +356,58 @@
 			channelInputContainer.innerHTML = createChannelInput();
 		</script>
 
-		<!-- Live Channel Matrix -->
 		<div id="timerContainer"></div>
 
 		<script>
+			const PRESS_TIMES_KEY = 'mapleBossTracker.pressTimes';
+			const SETTINGS_KEY = 'mapleBossTracker.settings';
+
+			function saveState() {
+				const data = timerStates.map(s => s.pressTime ? s.pressTime.toISOString() : null);
+				localStorage.setItem(PRESS_TIMES_KEY, JSON.stringify(data));
+			}
+
+			function loadState() {
+				try {
+					const raw = localStorage.getItem(PRESS_TIMES_KEY);
+					if (!raw) return;
+
+					const data = JSON.parse(raw);
+					data.forEach((iso, i) => {
+						if (iso && timerStates[i]) {
+							timerStates[i].pressTime = new Date(iso);
+						}
+					});
+				} catch (e) {
+					console.warn('Could not load saved timers:', e);
+				}
+			}
+
+			function saveSettings() {
+				const settings = {
+					channels: channelInput.value,
+					delayHours: delayHoursInput.value,
+					delayMinutes: delayMinutesInput.value,
+					randomization: randomizationInput.value
+				};
+				localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+			}
+
+			function loadSettings() {
+				try {
+					const raw = localStorage.getItem(SETTINGS_KEY);
+					if (!raw) return;
+
+					const settings = JSON.parse(raw);
+					if (settings.channels !== undefined) channelInput.value = settings.channels;
+					if (settings.delayHours !== undefined) delayHoursInput.value = settings.delayHours;
+					if (settings.delayMinutes !== undefined) delayMinutesInput.value = settings.delayMinutes;
+					if (settings.randomization !== undefined) randomizationInput.value = settings.randomization;
+				} catch (e) {
+					console.warn('Could not load saved settings:', e);
+				}
+			}
+
 			const channelInput = document.getElementById('channelInput');
 			const delayHoursInput = document.getElementById('delayHoursInput');
 			const delayMinutesInput = document.getElementById('delayMinutesInput');
@@ -345,6 +422,9 @@
 					IntervalId: null
 				});
 			}
+
+			loadSettings();
+			loadState();
 
 			function formatTimeSpan(time) {
 				const hours = Math.floor(time / (1000 * 60 * 60));
@@ -515,6 +595,7 @@
 				recordButton.addEventListener('click', () => {
 					timerState.pressTime = new Date();
 					updateTimer(timerContainer, timerState);
+					saveState();
 				});
 
 				function toTodayDate(timeString) {
@@ -527,10 +608,12 @@
 				recordInput.addEventListener('change', (event) => {
 					timerState.pressTime = toTodayDate(event.target.value);
 					updateTimer(timerContainer, timerState);
+					saveState();
 				});
 
 				clearButton.addEventListener('click', () => {
 					clearTimer(timerContainer, timerState);
+					saveState();
 				});
 
 				rowTop.appendChild(recordButton);
@@ -580,12 +663,16 @@
 				}
 			}
 
-			channelInput.addEventListener('input', createTimers);
+			channelInput.addEventListener('input', () => {
+				createTimers();
+				saveSettings();
+			});
 
 			delayHoursInput.addEventListener('change', () => {
 				if (parseInt(delayHoursInput.value) < 0)
 					delayHoursInput.value = 0;
 				UpdateTimers();
+				saveSettings();
 			});
 
 			delayMinutesInput.addEventListener('change', () => {
@@ -595,6 +682,7 @@
 				else if (minutes > 59)
 					delayMinutesInput.value = 59;
 				UpdateTimers();
+				saveSettings();
 			});
 
 			randomizationInput.addEventListener('change', () => {
@@ -604,40 +692,59 @@
 				else if (randomization > 100)
 					randomizationInput.value = 100;
 				UpdateTimers();
+				saveSettings();
 			});
 
 			createTimers();
 
 			const originalTitle = document.title;
 
-			function updateDocumentTitle() {
-				var minPressTime = null;
-				var nextChannel;
+			function formatDocumentTitle() {
+				const list = [];
+				var hasSpawned = false;
 
 				for (let i = 0; i < timerStates.length; i++) {
-					if (timerStates[i].pressTime === null)
-						continue;
-					if (minPressTime === null || timerStates[i].pressTime < minPressTime) {
-						minPressTime = timerStates[i].pressTime;
-						nextChannel = i;
-					}
-				}
+					const timerState = timerStates[i];
 
-				if (minPressTime === null) {
-					document.title = originalTitle;
-				} else {
+					if (timerState.pressTime === null)
+						continue;
+
 					let respawnHours = parseInt(delayHoursInput.value) || 0;
 					let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
 
 					const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
-					const respawnAvgTime = new Date(minPressTime.getTime() + respawnDelay);
+					const respawnAvgTime = new Date(timerState.pressTime.getTime() + respawnDelay);
 					const timeRemaining = respawnAvgTime.getTime() - new Date().getTime();
 
-					if (timeRemaining <= 0)
-						document.title = `⚠️ Ch${nextChannel + 1}: SOON!!!`;
-					else
-						document.title = `⌚ Ch${nextChannel + 1}: [${formatTimeSpan(timeRemaining)}]`;
-				};
+					if (hasSpawned <= 0)
+						hasSpawned = true;
+
+					list.push({ channel: i + 1, timeRemaining: timeRemaining })
+				}
+
+				list.sort((a, b) => a.timeRemaining - b.timeRemaining);
+
+				const toDisplay = 3;
+
+				var result = '';
+
+				if (hasSpawned)
+					result += '⚠️';
+				else
+					result += '⌚';
+
+				for (let i = 0; i < toDisplay && i < list.length; i++) {
+					if (i != 0)
+						result += ", ";
+
+					result += `Ch${list[i].channel}: [${formatTimeSpan(Math.max(0, list[i].timeRemaining))}]`;
+				}
+
+				return result;
+			}
+
+			function updateDocumentTitle() {
+				document.title = formatDocumentTitle();
 			}
 
 			setInterval(updateDocumentTitle, 1000);
@@ -645,6 +752,13 @@
 		</script>
 
 	</div>
+
+	<footer class="page-footer">
+		<p class="footer-text">
+			Hit a channel's button the moment you kill the boss there. The timer shows when it's expected to respawn. Adjust
+			the <strong>Respawn Delay</strong> to match the boss you're hunting.
+		</p>
+	</footer>
 </body>
 
 </html>
