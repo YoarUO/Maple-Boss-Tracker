@@ -455,7 +455,7 @@
 			loadStates();
 
 			/* Utility Functions */
-			function formatTimeSpan(time) {
+			function formatTime(time) {
 				const hours = Math.floor(time / (1000 * 60 * 60));
 				const minutes = Math.floor((time % (1000 * 60 * 60)) / (1000 * 60));
 				const seconds = Math.floor((time % (1000 * 60)) / 1000);
@@ -469,13 +469,20 @@
 					return `${mm}:${ss}`;
 			}
 
+			function toTodayDate(timeString) {
+				const todayString = new Date().toISOString().split('T')[0];
+				const dateString = `${todayString}T${timeString}`;
+
+				return new Date(dateString);
+			}
+
 			function formatTimeIcon(time, delayVariationMs) {
 				if (time <= -2 * delayVariationMs)
 					return '⚠️';
 				else if (time <= 0)
 					return '✔️';
 				else
-					return formatTimeSpan(time);
+					return formatTime(time);
 			}
 
 			/* Main Functions */
@@ -537,7 +544,7 @@
 						countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
 						countdownLabel.classList.remove('is-spawned');
 						countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
-						countdownLabel.textContent = `Remaining: ${formatTimeSpan(timeRemaining)}`;
+						countdownLabel.textContent = `Remaining: ${formatTime(timeRemaining)}`;
 					}
 				}
 			}
@@ -620,13 +627,6 @@
 					updateDocumentTitle();
 					saveStates();
 				});
-
-				function toTodayDate(timeString) {
-					const todayString = new Date().toISOString().split('T')[0];
-					const dateTimeString = `${todayString}T${timeString}`;
-
-					return new Date(dateTimeString);
-				}
 
 				recordInput.addEventListener('change', (event) => {
 					timerState.pressTime = toTodayDate(event.target.value);
@@ -827,12 +827,12 @@
 		</script>
 	</div>
 
-	<footer class="page-footer">
+	<!--<footer class="page-footer">
 		<p class="footer-text">
 			Hit a channel's button the moment you kill the boss there. The timer shows when it's ready to respawn. Adjust
 			the <strong>Respawn Delay</strong> to match the boss you're hunting.
 		</p>
-	</footer>
+	</footer>-->
 </body>
 
 </html>
