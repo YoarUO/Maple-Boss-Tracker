@@ -234,6 +234,57 @@
 			outline-offset: 1px;
 		}
 
+		.checkbox-group {
+			gap: 8px;
+		}
+
+		.styled-checkbox {
+			appearance: none;
+			-webkit-appearance: none;
+			width: 16px;
+			height: 16px;
+			margin: 0;
+			background-color: var(--bg-input);
+			border: 1px solid var(--hairline);
+			border-radius: 4px;
+			cursor: pointer;
+			position: relative;
+			transition: all 0.15s ease-in-out;
+		}
+
+		.styled-checkbox:hover {
+			border-color: var(--maple-gold-dim);
+		}
+
+		.styled-checkbox:checked {
+			background-color: var(--maple-gold);
+			border-color: var(--maple-gold);
+		}
+
+		.styled-checkbox:checked::after {
+			content: '';
+			position: absolute;
+			left: 4px;
+			top: 1px;
+			width: 4px;
+			height: 8px;
+			border: solid var(--bg-void);
+			border-width: 0 2px 2px 0;
+			transform: rotate(45deg);
+		}
+
+		.styled-checkbox:focus-visible {
+			outline: 2px solid var(--maple-gold);
+			outline-offset: 1px;
+		}
+
+		.checkbox-label {
+			font-size: 13px;
+			color: var(--text-secondary);
+			cursor: pointer;
+			user-select: none;
+		}
+
 		.record-input {
 			width: 100%;
 		}
@@ -363,6 +414,11 @@
 
 		<div class="tools-row">
 			<button id="copyTimersButton" type="button">Copy Timers</button>
+			<div class="form-group checkbox-group">
+				<input type="checkbox" id="formatLocalTimeCheckbox" class="styled-checkbox">
+				<label for="formatLocalTimeCheckbox" class="checkbox-label">Format Local Time</label>
+			</div>
+			<button id="clearTimersButton" type="button">Clear Timers</button>
 		</div>
 
 		<script>
@@ -380,6 +436,7 @@
 			const delayMinutesInput = document.getElementById('delayMinutesInput');
 			const randomizationInput = document.getElementById('randomizationInput');
 			const timersContainer = document.getElementById('timerContainer');
+			const formatLocalTimeCheckbox = document.getElementById('formatLocalTimeCheckbox');
 
 			/* Initialize Inputs */
 			channelInput.min = CHANNELS_MIN;
@@ -393,7 +450,8 @@
 					channels: channelInput.value,
 					delayHours: delayHoursInput.value,
 					delayMinutes: delayMinutesInput.value,
-					randomization: randomizationInput.value
+					randomization: randomizationInput.value,
+					formatLocalTime: formatLocalTimeCheckbox.checked
 				};
 
 				localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -416,6 +474,8 @@
 						delayMinutesInput.value = settings.delayMinutes;
 					if (settings.randomization !== undefined)
 						randomizationInput.value = settings.randomization;
+					if (settings.formatLocalTime !== undefined)
+						formatLocalTimeCheckbox.checked = settings.formatLocalTime;
 				} catch (e) {
 					console.warn('Could not load saved settings:', e);
 				}
@@ -570,14 +630,12 @@
 
 				if (countdownLabel) {
 					countdownLabel.textContent = '';
-					countdownLabel.classList.remove('is-available');
-					countdownLabel.classList.remove('is-elapsed');
-					countdownLabel.classList.remove('is-completed');
+					countdownLabel.classList.remove('is-ready');
+					countdownLabel.classList.remove('is-spawned');
 				}
 
-				timerContainer.classList.remove('is-available');
-				timerContainer.classList.remove('is-elapsed');
-				timerContainer.classList.remove('is-completed');
+				timerContainer.classList.remove('is-ready');
+				timerContainer.classList.remove('is-spawned');
 				timerState.pressTime = null;
 			}
 
@@ -724,7 +782,7 @@
 				return `⌚${timers}`;
 			}
 
-			/* Update Helpers */
+			/* Helpers */
 			function updateAllTimers() {
 				children = timersContainer.getElementsByClassName('timer-container');
 
@@ -733,11 +791,19 @@
 				}
 			}
 
+			function clearAllTimers() {
+				children = timersContainer.getElementsByClassName('timer-container');
+
+				for (let i = 0; i < children.length; i++) {
+					clearTimer(children[i], timerStates[i]);
+				}
+			}
+
 			function updateDocumentTitle() {
 				document.title = formatDocumentTitle();
 			}
 
-			function updateAll() {
+			function updateContent() {
 				updateAllTimers();
 				updateDocumentTitle();
 			}
@@ -752,7 +818,7 @@
 				if (parseInt(delayHoursInput.value) < 0)
 					delayHoursInput.value = 0;
 
-				updateAll();
+				updateContent();
 				saveSettings();
 			});
 
@@ -764,7 +830,7 @@
 				else if (minutes > 59)
 					delayMinutesInput.value = 59;
 
-				updateAll();
+				updateContent();
 				saveSettings();
 			});
 
@@ -776,7 +842,7 @@
 				else if (randomization > 100)
 					randomizationInput.value = 100;
 
-				updateAll();
+				updateContent();
 				saveSettings();
 			});
 
@@ -785,12 +851,14 @@
 			updateDocumentTitle();
 
 			/* Main Tick */
-			setInterval(updateAll, 1000);
+			setInterval(updateContent, 1000);
 
 			/* Set Timers to Clipboard */
 			function formatTimers() {
 				let delayHours = parseInt(delayHoursInput.value) || 0;
 				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
+				let formatLocalTime = formatLocalTimeCheckbox.checked;
+
 				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
 
 				const lines = [];
@@ -802,7 +870,7 @@
 						continue;
 
 					const respawnAvgTime = new Date(timerState.pressTime.getTime() + delayMs);
-					const hh = String(respawnAvgTime.getHours()).padStart(2, '0');
+					const hh = formatLocalTime ? String(respawnAvgTime.getHours()).padStart(2, '0') : 'xx';
 					const mm = String(respawnAvgTime.getMinutes()).padStart(2, '0');
 
 					lines.push(`ch${i + 1}: ${hh}:${mm}`);
@@ -824,6 +892,8 @@
 			}
 
 			document.getElementById('copyTimersButton').addEventListener('click', setTimersToClipboard);
+			formatLocalTimeCheckbox.addEventListener('change', saveSettings);
+			document.getElementById('clearTimersButton').addEventListener('click', clearAllTimers);
 		</script>
 	</div>
 
