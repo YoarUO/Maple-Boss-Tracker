@@ -402,6 +402,7 @@
 			function loadSettings() {
 				try {
 					const raw = localStorage.getItem(SETTINGS_KEY);
+
 					if (!raw)
 						return;
 
@@ -445,15 +446,15 @@
 				}
 			}
 
+			/* Init. Settings, Timer States */
 			const timerStates = Array.from({ length: CHANNELS_MAX }, () => ({
-				pressTime: null,
-				IntervalId: null
+				pressTime: null
 			}));
 
 			loadSettings();
 			loadStates();
 
-			/* Main Timer Card Logic */
+			/* Utility Functions */
 			function formatTimeSpan(time) {
 				const hours = Math.floor(time / (1000 * 60 * 60));
 				const minutes = Math.floor((time % (1000 * 60 * 60)) / (1000 * 60));
@@ -468,67 +469,32 @@
 					return `${mm}:${ss}`;
 			}
 
-			function updateInterval(countdownLabel, timerState) {
-				if (timerState.pressTime === null)
-					return;
-
-				let respawnHours = parseInt(delayHoursInput.value) || 0;
-				let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
-				let randomizationPerc = parseInt(randomizationInput.value) || 0;
-
-				const pressTime = timerState.pressTime;
-
-				const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
-				const respawnVariation = randomizationPerc * respawnDelay / 100;
-				const respawnAvgTime = new Date(pressTime.getTime() + respawnDelay);
-				const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
-				const respawnMaxTime = new Date(respawnAvgTime.getTime() + respawnVariation);
-				const now = new Date();
-				const timeRemaining = respawnMinTime.getTime() - now.getTime();
-
-				// TODO
-				if (timeRemaining <= -2 * respawnVariation) {
-					// TODO: Method to swap between one of 3 states
-					countdownLabel.classList.remove('is-ready');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
-					countdownLabel.classList.add('is-spawned');
-					countdownLabel.closest('.timer-container')?.classList.add('is-spawned');
-					countdownLabel.textContent = "Spawned!";
-					clearInterval(timerState.IntervalId); // TODO: clearInterval method?
-					timerState.IntervalId = null;
-				} else if (timeRemaining <= 0) {
-					// TODO: Method to swap between one of 3 states
-					countdownLabel.classList.remove('is-spawned');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
-					countdownLabel.classList.add('is-ready');
-					countdownLabel.closest('.timer-container')?.classList.add('is-ready');
-					countdownLabel.textContent = "Ready!";
-					clearInterval(timerState.IntervalId); // TODO: clearInterval method?
-					timerState.IntervalId = null;
-				} else {
-					// TODO: Method to swap between one of 3 states
-					countdownLabel.classList.remove('is-ready');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
-					countdownLabel.classList.remove('is-spawned');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
-					countdownLabel.textContent = `Remaining: ${formatTimeSpan(timeRemaining)}`;
-				}
+			function formatTimeIcon(time, delayVariationMs) {
+				if (time <= -2 * delayVariationMs)
+					return '⚠️';
+				else if (time <= 0)
+					return '✔️';
+				else
+					return formatTimeSpan(time);
 			}
 
+			/* Main Functions */
 			function updateTimer(timerContainer, timerState) {
 				if (timerState.pressTime === null)
 					return;
 
-				let respawnHours = parseInt(delayHoursInput.value) || 0;
-				let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
-				let randomizationPerc = parseInt(randomizationInput.value) || 0;
+				let delayHours = parseInt(delayHoursInput.value) || 0;
+				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
+				let delayRandPerc = parseInt(randomizationInput.value) || 0;
 
 				const pressTime = timerState.pressTime;
-				const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
-				const respawnVariation = randomizationPerc * respawnDelay / 100;
-				const respawnAvgTime = new Date(pressTime.getTime() + respawnDelay);
-				const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
-				const respawnMaxTime = new Date(respawnAvgTime.getTime() + respawnVariation);
+				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
+				const delayRandMs = delayRandPerc * delayMs / 100;
+				const respawnAvgTime = new Date(pressTime.getTime() + delayMs);
+				const respawnMinTime = new Date(respawnAvgTime.getTime() - delayRandMs);
+				const respawnMaxTime = new Date(respawnAvgTime.getTime() + delayRandMs);
+				const now = new Date();
+				const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
 				const recordInput = timerContainer.querySelector('#recordInput');
 				const respawnAvgLabel = timerContainer.querySelector('#respawnAvgLabel');
@@ -537,10 +503,10 @@
 				const countdownLabel = timerContainer.querySelector('#countdownLabel');
 
 				if (recordInput) {
-					const hours = String(pressTime.getHours()).padStart(2, '0');
-					const minutes = String(pressTime.getMinutes()).padStart(2, '0');
+					const hh = String(pressTime.getHours()).padStart(2, '0');
+					const mm = String(pressTime.getMinutes()).padStart(2, '0');
 
-					recordInput.value = `${hours}:${minutes}`;
+					recordInput.value = `${hh}:${mm}`;
 				}
 
 				if (respawnAvgLabel)
@@ -553,8 +519,26 @@
 					respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 				if (countdownLabel) {
-					updateInterval(countdownLabel, timerState);
-					timerState.IntervalId = setInterval(updateInterval, 1000, countdownLabel, timerState);
+					// TODO: Method to swap between one of three states
+					if (timeRemaining <= -2 * delayRandMs) {
+						countdownLabel.classList.remove('is-ready');
+						countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
+						countdownLabel.classList.add('is-spawned');
+						countdownLabel.closest('.timer-container')?.classList.add('is-spawned');
+						countdownLabel.textContent = "Spawned!";
+					} else if (timeRemaining <= 0) {
+						countdownLabel.classList.remove('is-spawned');
+						countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
+						countdownLabel.classList.add('is-ready');
+						countdownLabel.closest('.timer-container')?.classList.add('is-ready');
+						countdownLabel.textContent = "Ready!";
+					} else {
+						countdownLabel.classList.remove('is-ready');
+						countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
+						countdownLabel.classList.remove('is-spawned');
+						countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
+						countdownLabel.textContent = `Remaining: ${formatTimeSpan(timeRemaining)}`;
+					}
 				}
 			}
 
@@ -582,8 +566,6 @@
 					countdownLabel.classList.remove('is-available');
 					countdownLabel.classList.remove('is-elapsed');
 					countdownLabel.classList.remove('is-completed');
-					clearInterval(timerState.IntervalId);
-					timerState.IntervalId = null;
 				}
 
 				timerContainer.classList.remove('is-available');
@@ -635,6 +617,7 @@
 				recordButton.addEventListener('click', () => {
 					timerState.pressTime = new Date();
 					updateTimer(timerContainer, timerState);
+					updateDocumentTitle();
 					saveStates();
 				});
 
@@ -648,11 +631,13 @@
 				recordInput.addEventListener('change', (event) => {
 					timerState.pressTime = toTodayDate(event.target.value);
 					updateTimer(timerContainer, timerState);
+					updateDocumentTitle();
 					saveStates();
 				});
 
 				clearButton.addEventListener('click', () => {
 					clearTimer(timerContainer, timerState);
+					updateDocumentTitle();
 					saveStates();
 				});
 
@@ -669,7 +654,7 @@
 				return timerContainer;
 			}
 
-			function createTimers() {
+			function ensureAllTimerContainers() {
 				let channelCount = parseInt(channelInput.value) || CHANNELS_DEFAULT;
 
 				if (channelCount < CHANNELS_MIN)
@@ -698,7 +683,49 @@
 				}
 			}
 
-			function UpdateTimers() {
+			const DOCUMENT_TITLE = document.title;
+
+			function formatDocumentTitle() {
+				let delayHours = parseInt(delayHoursInput.value) || 0;
+				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
+				let delayRandPerc = parseInt(randomizationInput.value) || 0;
+
+				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
+				const delayRandMs = delayRandPerc * delayMs / 100;
+
+				const list = [];
+
+				for (let i = 0; i < CHANNELS_MAX; i++) {
+					const timerState = timerStates[i];
+
+					if (timerState.pressTime === null)
+						continue;
+
+					const respawnAvgTime = new Date(timerState.pressTime.getTime() + delayMs);
+					const respawnMinTime = new Date(respawnAvgTime.getTime() - delayRandMs);
+					const now = new Date();
+					const timeRemaining = respawnMinTime.getTime() - now.getTime();
+
+					list.push({ channel: i + 1, timeRemaining: timeRemaining })
+				}
+
+				if (list.length == 0)
+					return DOCUMENT_TITLE;
+
+				list.sort((a, b) => a.timeRemaining - b.timeRemaining);
+
+				const toDisplay = 3;
+
+				const timers = list
+					.slice(0, toDisplay)
+					.map(item => `ch${item.channel}: ${formatTimeIcon(item.timeRemaining, delayRandMs)}`)
+					.join(', ');
+
+				return `⌚${timers}`;
+			}
+
+			/* Update Helpers */
+			function updateAllTimers() {
 				children = timersContainer.getElementsByClassName('timer-container');
 
 				for (let i = 0; i < children.length; i++) {
@@ -706,9 +733,18 @@
 				}
 			}
 
-			/* Register Input Events */
+			function updateDocumentTitle() {
+				document.title = formatDocumentTitle();
+			}
+
+			function updateAll() {
+				updateAllTimers();
+				updateDocumentTitle();
+			}
+
+			/* Input Events */
 			channelInput.addEventListener('input', () => {
-				createTimers();
+				ensureAllTimerContainers();
 				saveSettings();
 			});
 
@@ -716,7 +752,7 @@
 				if (parseInt(delayHoursInput.value) < 0)
 					delayHoursInput.value = 0;
 
-				UpdateTimers();
+				updateAll();
 				saveSettings();
 			});
 
@@ -728,7 +764,7 @@
 				else if (minutes > 59)
 					delayMinutesInput.value = 59;
 
-				UpdateTimers();
+				updateAll();
 				saveSettings();
 			});
 
@@ -740,79 +776,22 @@
 				else if (randomization > 100)
 					randomizationInput.value = 100;
 
-				UpdateTimers();
+				updateAll();
 				saveSettings();
 			});
 
-			/* Create Timer Cards */
-			createTimers();
+			/* Init. Content */
+			ensureAllTimerContainers();
+			updateDocumentTitle();
 
-			/* Dynamic Document Title */
-			const originalTitle = document.title;
+			/* Main Tick */
+			setInterval(updateAll, 1000);
 
-			function formatTitleTimer(timeRemaining, respawnVariation) {
-				if (timeRemaining <= -2 * respawnVariation)
-					return '⚠️';
-				else if (timeRemaining <= 0)
-					return '✔️';
-				else
-					return formatTimeSpan(timeRemaining);
-			}
-
-			function formatDocumentTitle() {
-				let respawnHours = parseInt(delayHoursInput.value) || 0;
-				let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
-				let randomizationPerc = parseInt(randomizationInput.value) || 0;
-
-				const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
-				const respawnVariation = randomizationPerc * respawnDelay / 100;
-
-				var isAvailable = false;
-				const list = [];
-
-				for (let i = 0; i < CHANNELS_MAX; i++) {
-					const timerState = timerStates[i];
-
-					if (timerState.pressTime === null)
-						continue;
-
-					const respawnAvgTime = new Date(timerState.pressTime.getTime() + respawnDelay);
-					const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
-					const now = new Date();
-					const timeRemaining = respawnMinTime.getTime() - now.getTime();
-
-					if (now >= respawnMinTime)
-						isAvailable = true;
-
-					list.push({ channel: i + 1, timeRemaining: timeRemaining })
-				}
-
-				if (list.length == 0)
-					return originalTitle;
-
-				list.sort((a, b) => a.timeRemaining - b.timeRemaining);
-
-				const toDisplay = 3;
-
-				const timers = list
-					.slice(0, toDisplay)
-					.map(item => `ch${item.channel}: ${formatTitleTimer(item.timeRemaining, respawnVariation)}`)
-					.join(', ');
-
-				return `⌚${timers}`;
-			}
-
-			function updateDocumentTitle() {
-				document.title = formatDocumentTitle();
-			}
-
-			setInterval(updateDocumentTitle, 1000);
-
-			/* Copy Timers */
+			/* Set Timers to Clipboard */
 			function formatTimers() {
-				let respawnHours = parseInt(delayHoursInput.value) || 0;
-				let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
-				const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
+				let delayHours = parseInt(delayHoursInput.value) || 0;
+				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
+				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
 
 				const lines = [];
 
@@ -822,7 +801,7 @@
 					if (timerState.pressTime === null)
 						continue;
 
-					const respawnAvgTime = new Date(timerState.pressTime.getTime() + respawnDelay);
+					const respawnAvgTime = new Date(timerState.pressTime.getTime() + delayMs);
 					const hh = String(respawnAvgTime.getHours()).padStart(2, '0');
 					const mm = String(respawnAvgTime.getMinutes()).padStart(2, '0');
 
