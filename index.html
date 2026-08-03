@@ -20,12 +20,8 @@
 			--text-muted: #5b6472;
 			--maple-gold: #e3b341;
 			--maple-gold-dim: #8a6a24;
-			--info-blue: #0284c7;
 			--ready-green: #4fd97b;
-			--warning-orange: #f39c12;
-			--info-glow: rgba(2, 132, 199, 0.18);
 			--ready-glow: rgba(79, 217, 123, 0.18);
-			--warning-glow: rgba(243, 156, 18, 0.18);
 			--font-display: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 			--font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 		}
@@ -102,6 +98,16 @@
 			border-bottom: 1px solid var(--hairline);
 		}
 
+		.tools-row {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 24px;
+			padding-top: 22px;
+			margin-top: 22px;
+			border-top: 1px solid var(--hairline);
+		}
+
 		.form-group {
 			display: flex;
 			align-items: center;
@@ -176,31 +182,13 @@
 			transition: border-color 0.2s ease;
 		}
 
-		.timer-container.is-available {
-			border-color: var(--info-blue);
-			box-shadow: 0 0 0 1px var(--info-glow), 0 0 24px -6px var(--info-glow);
-		}
-
-		span.is-available {
-			color: var(--info-blue);
-		}
-
-		.timer-container.is-elapsed {
+		.timer-container.is-ready {
 			border-color: var(--ready-green);
 			box-shadow: 0 0 0 1px var(--ready-glow), 0 0 24px -6px var(--ready-glow);
 		}
 
-		span.is-elapsed {
+		span.is-ready {
 			color: var(--ready-green);
-		}
-
-		.timer-container.is-completed {
-			border-color: var(--warning-orange);
-			box-shadow: 0 0 0 1px var(--warning-glow), 0 0 24px -6px var(--warning-glow);
-		}
-
-		span.is-completed {
-			color: var(--warning-orange);
 		}
 
 		.timer-container .row-top {
@@ -237,13 +225,6 @@
 
 		.record-input {
 			width: 100%;
-		}
-
-		.record-label {
-			font-size: 13px;
-			font-weight: 700;
-			color: var(--text-secondary);
-			min-width: unset;
 		}
 
 		.respawn-label {
@@ -294,6 +275,10 @@
 			.config-row {
 				gap: 14px;
 			}
+
+			.tools-row {
+				gap: 14px;
+			}
 		}
 
 		.page-footer {
@@ -340,10 +325,12 @@
 	</div>
 
 	<div class="page-frame">
-
 		<!-- Configuration Panel -->
 		<div class="config-row">
-			<div id="channelInputContainer"></div>
+			<div class="form-group">
+				<label for="channelInput" class="main-label">Channels</label>
+				<input type="number" id="channelInput" class="input-channels">
+			</div>
 
 			<div class="form-group">
 				<label class="main-label">Respawn Delay</label>
@@ -360,55 +347,36 @@
 			</div>
 		</div>
 
-		<script>
-			const minChannels = 1;
-			const maxChannels = 12;
-			const defaultChannels = 6;
-
-			function createChannelInput() {
-				return `
-				<div class="form-group">
-					<label for="channelInput" class="main-label">Channels</label>
-					<input type="number" id="channelInput" class="input-channels" min="${minChannels}" max="${maxChannels}" value="${defaultChannels}">
-				</div>
-			`;
-			}
-
-			const channelInputContainer = document.getElementById('channelInputContainer');
-			channelInputContainer.innerHTML = createChannelInput();
-		</script>
-
+		<!-- Timer Cards -->
 		<div id="timerContainer"></div>
 
+		<div class="tools-row">
+			<button id="copyTimersButton" type="button">Copy Timers</button>
+		</div>
+
 		<script>
-			const PRESS_TIMES_KEY = 'mapleBossTracker.pressTimes';
+			/* Configurations */
+			const CHANNELS_MIN = 1;
+			const CHANNELS_MAX = 12;
+			const CHANNELS_DEFAULT = 6;
+			const RANDOMIZATION_DEFAULT = 10;
 			const SETTINGS_KEY = 'mapleBossTracker.settings';
+			const PRESS_TIMES_KEY = 'mapleBossTracker.pressTimes';
 
-			function saveState() {
-				const data = timerStates.map(s => s.pressTime ? s.pressTime.toISOString() : null);
+			/* Get Element Handles */
+			const channelInput = document.getElementById('channelInput');
+			const delayHoursInput = document.getElementById('delayHoursInput');
+			const delayMinutesInput = document.getElementById('delayMinutesInput');
+			const randomizationInput = document.getElementById('randomizationInput');
+			const timersContainer = document.getElementById('timerContainer');
 
-				localStorage.setItem(PRESS_TIMES_KEY, JSON.stringify(data));
-			}
+			/* Initialize Inputs */
+			channelInput.min = CHANNELS_MIN;
+			channelInput.max = CHANNELS_MAX;
+			channelInput.value = CHANNELS_DEFAULT;
+			randomizationInput.value = RANDOMIZATION_DEFAULT;
 
-			function loadState() {
-				try {
-					const raw = localStorage.getItem(PRESS_TIMES_KEY);
-
-					if (!raw)
-						return;
-
-					const data = JSON.parse(raw);
-
-					data.forEach((iso, i) => {
-						if (iso && timerStates[i]) {
-							timerStates[i].pressTime = new Date(iso);
-						}
-					});
-				} catch (e) {
-					console.warn('Could not load saved timers:', e);
-				}
-			}
-
+			/* Load Settings, States */
 			function saveSettings() {
 				const settings = {
 					channels: channelInput.value,
@@ -441,24 +409,40 @@
 				}
 			}
 
-			const channelInput = document.getElementById('channelInput');
-			const delayHoursInput = document.getElementById('delayHoursInput');
-			const delayMinutesInput = document.getElementById('delayMinutesInput');
-			const randomizationInput = document.getElementById('randomizationInput');
-			const timersContainer = document.getElementById('timerContainer');
+			function saveStates() {
+				const data = timerStates.map(s => s.pressTime ? s.pressTime.toISOString() : null);
 
-			const timerStates = [];
-
-			for (let i = 0; i < maxChannels; i++) {
-				timerStates.push({
-					pressTime: null,
-					IntervalId: null
-				});
+				localStorage.setItem(PRESS_TIMES_KEY, JSON.stringify(data));
 			}
 
-			loadSettings();
-			loadState();
+			function loadStates() {
+				try {
+					const raw = localStorage.getItem(PRESS_TIMES_KEY);
 
+					if (!raw)
+						return;
+
+					const data = JSON.parse(raw);
+
+					data.forEach((iso, i) => {
+						if (iso && timerStates[i]) {
+							timerStates[i].pressTime = new Date(iso);
+						}
+					});
+				} catch (e) {
+					console.warn('Could not load saved timers:', e);
+				}
+			}
+
+			const timerStates = Array.from({ length: CHANNELS_MAX }, () => ({
+				pressTime: null,
+				IntervalId: null
+			}));
+
+			loadSettings();
+			loadStates();
+
+			/* Main Timer Card Logic */
 			function formatTimeSpan(time) {
 				const hours = Math.floor(time / (1000 * 60 * 60));
 				const minutes = Math.floor((time % (1000 * 60 * 60)) / (1000 * 60));
@@ -489,43 +473,17 @@
 				const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
 				const respawnMaxTime = new Date(respawnAvgTime.getTime() + respawnVariation);
 				const now = new Date();
-				const timeRemaining = respawnAvgTime.getTime() - now.getTime();
-
-				// TODO: Cleaner way to do this?
-				if (now < respawnMinTime) {
-					countdownLabel.classList.remove('is-available');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-available');
-					countdownLabel.classList.remove('is-elapsed');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-elapsed');
-					countdownLabel.classList.remove('is-completed');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-completed');
-				} else if (now < respawnAvgTime) {
-					countdownLabel.classList.remove('is-elapsed');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-elapsed');
-					countdownLabel.classList.remove('is-completed');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-completed');
-					countdownLabel.classList.add('is-available');
-					countdownLabel.closest('.timer-container')?.classList.add('is-available');
-				} else if (now < respawnMaxTime) {
-					countdownLabel.classList.remove('is-available');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-available');
-					countdownLabel.classList.remove('is-completed');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-completed');
-					countdownLabel.classList.add('is-elapsed');
-					countdownLabel.closest('.timer-container')?.classList.add('is-elapsed');
-				} else {
-					countdownLabel.closest('.timer-container')?.classList.remove('is-available');
-					countdownLabel.classList.remove('is-elapsed');
-					countdownLabel.closest('.timer-container')?.classList.remove('is-elapsed');
-					countdownLabel.classList.add('is-completed');
-					countdownLabel.closest('.timer-container')?.classList.add('is-completed');
-				}
+				const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
 				if (timeRemaining <= 0) {
+					countdownLabel.classList.add('is-ready');
+					countdownLabel.closest('.timer-container')?.classList.add('is-ready');
 					countdownLabel.textContent = "Ready!";
 					clearInterval(timerState.IntervalId);
 					timerState.IntervalId = null;
 				} else {
+					countdownLabel.classList.remove('is-ready');
+					countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
 					countdownLabel.textContent = `Remaining: ${formatTimeSpan(timeRemaining)}`;
 				}
 			}
@@ -546,7 +504,6 @@
 				const respawnMaxTime = new Date(respawnAvgTime.getTime() + respawnVariation);
 
 				const recordInput = timerContainer.querySelector('#recordInput');
-				const recordLabel = timerContainer.querySelector('#recordLabel');
 				const respawnAvgLabel = timerContainer.querySelector('#respawnAvgLabel');
 				const respawnMinLabel = timerContainer.querySelector('#respawnMinLabel');
 				const respawnMaxLabel = timerContainer.querySelector('#respawnMaxLabel');
@@ -558,9 +515,6 @@
 
 					recordInput.value = `${hours}:${minutes}`;
 				}
-
-				if (recordLabel)
-					recordLabel.textContent = `Recorded: ${pressTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 				if (respawnAvgLabel)
 					respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
@@ -579,7 +533,6 @@
 
 			function clearTimer(timerContainer, timerState) {
 				const recordInput = timerContainer.querySelector('#recordInput');
-				const recordLabel = timerContainer.querySelector('#recordLabel');
 				const respawnAvgLabel = timerContainer.querySelector('#respawnAvgLabel');
 				const respawnMinLabel = timerContainer.querySelector('#respawnMinLabel');
 				const respawnMaxLabel = timerContainer.querySelector('#respawnMaxLabel');
@@ -587,9 +540,6 @@
 
 				if (recordInput)
 					recordInput.value = '';
-
-				if (recordLabel)
-					recordLabel.textContent = '';
 
 				if (respawnAvgLabel)
 					respawnAvgLabel.textContent = '';
@@ -630,10 +580,6 @@
 				recordInput.max = "23:59"
 				recordInput.step = "60"
 
-				const recordLabel = document.createElement('span');
-				recordLabel.id = 'recordLabel';
-				recordLabel.className = 'record-label';
-
 				const respawnAvgLabel = document.createElement('span');
 				respawnAvgLabel.id = 'respawnAvgLabel';
 				respawnAvgLabel.className = 'respawn-label';
@@ -662,7 +608,7 @@
 				recordButton.addEventListener('click', () => {
 					timerState.pressTime = new Date();
 					updateTimer(timerContainer, timerState);
-					saveState();
+					saveStates();
 				});
 
 				function toTodayDate(timeString) {
@@ -675,12 +621,12 @@
 				recordInput.addEventListener('change', (event) => {
 					timerState.pressTime = toTodayDate(event.target.value);
 					updateTimer(timerContainer, timerState);
-					saveState();
+					saveStates();
 				});
 
 				clearButton.addEventListener('click', () => {
 					clearTimer(timerContainer, timerState);
-					saveState();
+					saveStates();
 				});
 
 				rowTop.appendChild(recordButton);
@@ -688,7 +634,6 @@
 
 				timerContainer.appendChild(rowTop);
 				timerContainer.appendChild(recordInput);
-				//timerContainer.appendChild(recordLabel);
 				timerContainer.appendChild(countdownLabel);
 				timerContainer.appendChild(respawnAvgLabel);
 				timerContainer.appendChild(respawnMinLabel);
@@ -698,12 +643,12 @@
 			}
 
 			function createTimers() {
-				let channelCount = parseInt(channelInput.value) || defaultChannels;
+				let channelCount = parseInt(channelInput.value) || CHANNELS_DEFAULT;
 
-				if (channelCount < minChannels)
-					channelCount = minChannels;
-				else if (channelCount > maxChannels)
-					channelCount = maxChannels;
+				if (channelCount < CHANNELS_MIN)
+					channelCount = CHANNELS_MIN;
+				else if (channelCount > CHANNELS_MAX)
+					channelCount = CHANNELS_MAX;
 
 				channelInput.value = channelCount;
 
@@ -712,12 +657,15 @@
 				if (channelCount > currentCount) {
 					for (let i = currentCount; i < channelCount; i++) {
 						timerContainer = createTimerContainer(i);
+
 						timersContainer.appendChild(timerContainer);
+
 						updateTimer(timerContainer, timerStates[i]);
 					}
 				} else if (channelCount < currentCount) {
 					while (timersContainer.getElementsByClassName('timer-container').length > channelCount) {
 						const lastRow = timersContainer.lastElementChild;
+
 						timersContainer.removeChild(lastRow);
 					}
 				}
@@ -725,11 +673,13 @@
 
 			function UpdateTimers() {
 				children = timersContainer.getElementsByClassName('timer-container');
+
 				for (let i = 0; i < children.length; i++) {
 					updateTimer(children[i], timerStates[i]);
 				}
 			}
 
+			/* Register Input Events */
 			channelInput.addEventListener('input', () => {
 				createTimers();
 				saveSettings();
@@ -738,39 +688,46 @@
 			delayHoursInput.addEventListener('change', () => {
 				if (parseInt(delayHoursInput.value) < 0)
 					delayHoursInput.value = 0;
+
 				UpdateTimers();
 				saveSettings();
 			});
 
 			delayMinutesInput.addEventListener('change', () => {
 				let minutes = parseInt(delayMinutesInput.value);
+
 				if (minutes < 0)
 					delayMinutesInput.value = 0;
 				else if (minutes > 59)
 					delayMinutesInput.value = 59;
+
 				UpdateTimers();
 				saveSettings();
 			});
 
 			randomizationInput.addEventListener('change', () => {
 				let randomization = parseInt(randomizationInput.value);
+
 				if (randomization < 0)
 					randomizationInput.value = 0;
 				else if (randomization > 100)
 					randomizationInput.value = 100;
+
 				UpdateTimers();
 				saveSettings();
 			});
 
+			/* Create Timer Cards */
 			createTimers();
 
+			/* Dynamic Document Title */
 			const originalTitle = document.title;
 
 			function formatDocumentTitle() {
 				var isAvailable = false;
 				const list = [];
 
-				for (let i = 0; i < timerStates.length; i++) {
+				for (let i = 0; i < CHANNELS_MAX; i++) {
 					const timerState = timerStates[i];
 
 					if (timerState.pressTime === null)
@@ -785,7 +742,7 @@
 					const respawnAvgTime = new Date(timerState.pressTime.getTime() + respawnDelay);
 					const respawnMinTime = new Date(respawnAvgTime.getTime() - respawnVariation);
 					const now = new Date();
-					const timeRemaining = respawnAvgTime.getTime() - now.getTime();
+					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
 					if (now >= respawnMinTime)
 						isAvailable = true;
@@ -800,21 +757,14 @@
 
 				const toDisplay = 3;
 
-				var result = '';
+				const icon = isAvailable ? '⚠️' : '⌚';
 
-				if (isAvailable)
-					result += '⚠️';
-				else
-					result += '⌚';
+				const timers = list
+					.slice(0, toDisplay)
+					.map(item => `Ch${item.channel}: ${item.timeRemaining <= 0 ? '✅' : '[' + formatTimeSpan(item.timeRemaining) + ']'}`)
+					.join(', ');
 
-				for (let i = 0; i < toDisplay && i < list.length; i++) {
-					if (i != 0)
-						result += ", ";
-
-					result += `Ch${list[i].channel}: [${formatTimeSpan(Math.max(0, list[i].timeRemaining))}]`;
-				}
-
-				return result;
+				return icon + timers;
 			}
 
 			function updateDocumentTitle() {
@@ -823,13 +773,49 @@
 
 			setInterval(updateDocumentTitle, 1000);
 
-		</script>
+			/* Copy Timers */
+			function formatTimers() {
+				let respawnHours = parseInt(delayHoursInput.value) || 0;
+				let respawnMinutes = parseInt(delayMinutesInput.value) || 0;
+				const respawnDelay = ((respawnHours * 60) + respawnMinutes) * 60 * 1000;
 
+				const lines = [];
+
+				for (let i = 0; i < CHANNELS_MAX; i++) {
+					const timerState = timerStates[i];
+
+					if (timerState.pressTime === null)
+						continue;
+
+					const respawnAvgTime = new Date(timerState.pressTime.getTime() + respawnDelay);
+					const hh = String(respawnAvgTime.getHours()).padStart(2, '0');
+					const mm = String(respawnAvgTime.getMinutes()).padStart(2, '0');
+
+					lines.push(`ch${i + 1}: ${hh}:${mm}`);
+				}
+
+				return lines.join('\n');
+			}
+
+			function setTimersToClipboard() {
+				const text = formatTimers();
+
+				navigator.clipboard.writeText(text).then(() => {
+					const original = copyTimersButton.textContent;
+					copyTimersButton.textContent = 'Copied!';
+					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+				}).catch(err => {
+					console.warn('Clipboard write failed:', err);
+				});
+			}
+
+			document.getElementById('copyTimersButton').addEventListener('click', setTimersToClipboard);
+		</script>
 	</div>
 
 	<footer class="page-footer">
 		<p class="footer-text">
-			Hit a channel's button the moment you kill the boss there. The timer shows when it's expected to respawn. Adjust
+			Hit a channel's button the moment you kill the boss there. The timer shows when it's ready to respawn. Adjust
 			the <strong>Respawn Delay</strong> to match the boss you're hunting.
 		</p>
 	</footer>
