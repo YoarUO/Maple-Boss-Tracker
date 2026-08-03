@@ -488,22 +488,25 @@
 
 				// TODO
 				if (timeRemaining <= -2 * respawnVariation) {
+					// TODO: Method to swap between one of 3 states
 					countdownLabel.classList.remove('is-ready');
 					countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
 					countdownLabel.classList.add('is-spawned');
 					countdownLabel.closest('.timer-container')?.classList.add('is-spawned');
 					countdownLabel.textContent = "Spawned!";
-					clearInterval(timerState.IntervalId);
+					clearInterval(timerState.IntervalId); // TODO: clearInterval method?
 					timerState.IntervalId = null;
 				} else if (timeRemaining <= 0) {
+					// TODO: Method to swap between one of 3 states
 					countdownLabel.classList.remove('is-spawned');
 					countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
 					countdownLabel.classList.add('is-ready');
 					countdownLabel.closest('.timer-container')?.classList.add('is-ready');
 					countdownLabel.textContent = "Ready!";
-					clearInterval(timerState.IntervalId);
+					clearInterval(timerState.IntervalId); // TODO: clearInterval method?
 					timerState.IntervalId = null;
 				} else {
+					// TODO: Method to swap between one of 3 states
 					countdownLabel.classList.remove('is-ready');
 					countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
 					countdownLabel.classList.remove('is-spawned');
@@ -751,7 +754,7 @@
 				if (timeRemaining <= -2 * respawnVariation)
 					return '⚠️';
 				else if (timeRemaining <= 0)
-					return '✅';
+					return '✔️';
 				else
 					return formatTimeSpan(timeRemaining);
 			}
