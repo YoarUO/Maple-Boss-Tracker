@@ -546,11 +546,19 @@
 					return `${mm}:${ss}`;
 			}
 
-			function toTodayDate(timeString) {
-				const todayString = new Date().toISOString().split('T')[0];
-				const dateString = `${todayString}T${timeString}`;
+			function timeStringToDate(timeString) {
+				const now = new Date();
+				const year = now.getFullYear();
+				const month = String(now.getMonth() + 1).padStart(2, '0');
+				const day = String(now.getDate()).padStart(2, '0');
+				const dateString = `${year}-${month}-${day}`;
+				const dateTimeString = `${dateString}T${timeString}`;
+				const date = new Date(dateTimeString);
 
-				return new Date(dateString);
+				if (date > now)
+					date.setDate(date.getDate() - 1);
+
+				return date;
 			}
 
 			function formatTimeIcon(time, delayVariationMs) {
@@ -696,7 +704,7 @@
 				});
 
 				recordInput.addEventListener('change', (event) => {
-					timerState.pressTime = toTodayDate(event.target.value);
+					timerState.pressTime = timeStringToDate(event.target.value);
 					updateTimer(timerContainer, timerState);
 					updateDocumentTitle();
 					saveStates();
