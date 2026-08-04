@@ -20,10 +20,12 @@
 			--text-muted: #5b6472;
 			--maple-gold: #e3b341;
 			--maple-gold-dim: #8a6a24;
-			--ready-green: #4fd97b;
-			--ready-glow: rgba(79, 217, 123, 0.18);
 			--warning-orange: #f59e0b;
 			--warning-glow: rgba(245, 158, 11, 0.18);
+			--success-green: #4fd97b;
+			--success-glow: rgba(79, 217, 123, 0.18);
+			--danger-red: #DC3545;
+			--danger-glow: rgba(220, 53, 69, 0.18);
 			--font-display: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 			--font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 		}
@@ -184,22 +186,31 @@
 			transition: border-color 0.2s ease;
 		}
 
-		.timer-container.is-ready {
-			border-color: var(--ready-green);
-			box-shadow: 0 0 0 1px var(--ready-glow), 0 0 24px -6px var(--ready-glow);
-		}
-
-		span.is-ready {
-			color: var(--ready-green);
-		}
-
-		.timer-container.is-spawned {
+		.timer-container.is-soon {
 			border-color: var(--warning-orange);
 			box-shadow: 0 0 0 1px var(--warning-glow), 0 0 24px -6px var(--warning-glow);
 		}
 
-		span.is-spawned {
+		.timer-container.is-soon span {
 			color: var(--warning-orange);
+		}
+
+		.timer-container.is-ready {
+			border-color: var(--success-green);
+			box-shadow: 0 0 0 1px var(--success-glow), 0 0 24px -6px var(--success-glow);
+		}
+
+		.timer-container.is-ready span {
+			color: var(--success-green);
+		}
+
+		.timer-container.is-spawned {
+			border-color: var(--danger-red);
+			box-shadow: 0 0 0 1px var(--danger-glow), 0 0 24px -6px var(--danger-glow);
+		}
+
+		.timer-container.is-spawned span {
+			color: var(--danger-red);
 		}
 
 		.timer-container .row-top {
@@ -515,6 +526,12 @@
 			loadStates();
 
 			/* Utility Functions */
+			function toggleClass(element, classNames, classIndex) {
+				for (let i = 0; i < classNames.length; i++) {
+					element.classList.toggle(classNames[i], classIndex == i);
+				}
+			}
+
 			function formatTime(time) {
 				const hours = Math.floor(time / (1000 * 60 * 60));
 				const minutes = Math.floor((time % (1000 * 60 * 60)) / (1000 * 60));
@@ -546,6 +563,9 @@
 			}
 
 			/* Main Functions */
+			const COUNTDOWN_STAGES = ['is-soon', 'is-ready', 'is-spawned'];
+			const SOON_THRESHOLD_MS = 300000;
+
 			function updateTimer(timerContainer, timerState) {
 				if (timerState.pressTime === null)
 					return;
@@ -586,24 +606,17 @@
 					respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 				if (countdownLabel) {
-					// TODO: Method to swap between one of three states
 					if (timeRemaining <= -2 * delayRandMs) {
-						countdownLabel.classList.remove('is-ready');
-						countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
-						countdownLabel.classList.add('is-spawned');
-						countdownLabel.closest('.timer-container')?.classList.add('is-spawned');
+						toggleClass(timerContainer, COUNTDOWN_STAGES, 2);
 						countdownLabel.textContent = "Spawned!";
 					} else if (timeRemaining <= 0) {
-						countdownLabel.classList.remove('is-spawned');
-						countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
-						countdownLabel.classList.add('is-ready');
-						countdownLabel.closest('.timer-container')?.classList.add('is-ready');
+						toggleClass(timerContainer, COUNTDOWN_STAGES, 1);
 						countdownLabel.textContent = "Ready!";
 					} else {
-						countdownLabel.classList.remove('is-ready');
-						countdownLabel.closest('.timer-container')?.classList.remove('is-ready');
-						countdownLabel.classList.remove('is-spawned');
-						countdownLabel.closest('.timer-container')?.classList.remove('is-spawned');
+						if (timeRemaining <= SOON_THRESHOLD_MS)
+							toggleClass(timerContainer, COUNTDOWN_STAGES, 0);
+						else
+							toggleClass(timerContainer, COUNTDOWN_STAGES, -1);
 						countdownLabel.textContent = `Remaining: ${formatTime(timeRemaining)}`;
 					}
 				}
@@ -628,14 +641,10 @@
 				if (respawnMaxLabel)
 					respawnMaxLabel.textContent = '';
 
-				if (countdownLabel) {
+				if (countdownLabel)
 					countdownLabel.textContent = '';
-					countdownLabel.classList.remove('is-ready');
-					countdownLabel.classList.remove('is-spawned');
-				}
 
-				timerContainer.classList.remove('is-ready');
-				timerContainer.classList.remove('is-spawned');
+				toggleClass(timerContainer, COUNTDOWN_STAGES, -1);
 				timerState.pressTime = null;
 			}
 
