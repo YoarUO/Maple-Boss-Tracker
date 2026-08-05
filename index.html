@@ -518,7 +518,7 @@
 			}
 
 			/* Init. Settings, Timer States */
-			const timerStates = Array.from({ length: CHANNELS_MAX }, () => ({
+			const timerStates = Array.from({length: CHANNELS_MAX}, () => ({
 				pressTime: null
 			}));
 
@@ -605,13 +605,13 @@
 				}
 
 				if (respawnAvgLabel)
-					respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+					respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 				if (respawnMinLabel)
-					respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+					respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 				if (respawnMaxLabel)
-					respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+					respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 				if (countdownLabel) {
 					if (timeRemaining <= -2 * delayRandMs) {
@@ -781,7 +781,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					list.push({ channel: i + 1, timeRemaining: timeRemaining })
+					list.push({channel: i + 1, timeRemaining: timeRemaining})
 				}
 
 				if (list.length == 0)
@@ -814,6 +814,9 @@
 				for (let i = 0; i < children.length; i++) {
 					clearTimer(children[i], timerStates[i]);
 				}
+
+				updateDocumentTitle();
+				saveStates();
 			}
 
 			function updateDocumentTitle() {
@@ -902,7 +905,7 @@
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
-					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
 				}).catch(err => {
 					console.warn('Clipboard write failed:', err);
 				});
