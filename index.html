@@ -549,13 +549,15 @@
 			function timeStringToDate(timeString) {
 				const now = new Date();
 				const year = now.getFullYear();
-				const month = String(now.getMonth() + 1).padStart(2, '0');
-				const day = String(now.getDate()).padStart(2, '0');
-				const dateString = `${year}-${month}-${day}`;
+				const MM = String(now.getMonth() + 1).padStart(2, '0');
+				const DD = String(now.getDate()).padStart(2, '0');
+				const dateString = `${year}-${MM}-${DD}`;
 				const dateTimeString = `${dateString}T${timeString}`;
 				const date = new Date(dateTimeString);
+				const halfDayMs = 43200000; // 24 * 60 * 60 * 1000 / 2;
 
-				if (date > now)
+				// If it's at least 12 hours in the future, assume the user meant yesterday
+				if ((date.getTime() - now.getTime()) > halfDayMs)
 					date.setDate(date.getDate() - 1);
 
 				return date;
