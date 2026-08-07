@@ -472,6 +472,7 @@
 		<div id="timerContainer"></div>
 
 		<div class="tools-row">
+			<button id="copyLinkButton" type="button">Copy Link</button>
 			<button id="copyTimersButton" type="button">Copy Timers</button>
 			<div class="form-group checkbox-group">
 				<input type="checkbox" id="formatLocalTimeCheckbox" class="styled-checkbox">
@@ -502,6 +503,11 @@
 			channelInput.max = CHANNELS_MAX;
 			channelInput.value = CHANNELS_DEFAULT;
 			randomizationInput.value = RANDOMIZATION_DEFAULT;
+
+			/* Initialize Timer States */
+			const timerStates = Array.from({ length: CHANNELS_MAX }, () => ({
+				pressTime: null
+			}));
 
 			/* Load Settings, States */
 			function saveSettings() {
@@ -540,13 +546,13 @@
 				}
 			}
 
-			function saveStates() {
+			function saveTimerStates() {
 				const data = timerStates.map(s => s.pressTime ? s.pressTime.toISOString() : null);
 
 				localStorage.setItem(PRESS_TIMES_KEY, JSON.stringify(data));
 			}
 
-			function loadStates() {
+			function loadTimerStates() {
 				try {
 					const raw = localStorage.getItem(PRESS_TIMES_KEY);
 
@@ -565,13 +571,36 @@
 				}
 			}
 
-			/* Init. Settings, Timer States */
-			const timerStates = Array.from({ length: CHANNELS_MAX }, () => ({
-				pressTime: null
-			}));
-
 			loadSettings();
-			loadStates();
+			loadTimerStates();
+
+			/* URL Params */
+			function encodeStatesToParam() {
+				return timerStates
+					.map(s => s.pressTime ? s.pressTime.getTime() : '')
+					.join(',');
+			}
+
+			function decodeParamToStates(param) {
+				return param.split(',').map(v => v ? new Date(Number(v)) : null);
+			}
+
+			function loadStateFromUrl() {
+				const params = new URLSearchParams(window.location.search);
+				const ptParam = params.get('pt');
+
+				if (!ptParam)
+					return;
+
+				decodeParamToStates(ptParam).forEach((pressTime, i) => {
+					if (timerStates[i]) timerStates[i].pressTime = pressTime;
+				});
+
+				// Strip the params from the visible URL now that they're processed
+				history.replaceState(null, '', window.location.pathname);
+			}
+
+			loadStateFromUrl();
 
 			/* Utility Functions */
 			function toggleClass(element, classNames, classIndex) {
@@ -623,6 +652,7 @@
 			/* Main Functions */
 			const COUNTDOWN_STAGES = ['is-soon', 'is-ready', 'is-spawned'];
 			const SOON_THRESHOLD_MS = 300000;
+			const DOCUMENT_TITLE = document.title;
 
 			function updateTimer(timerContainer, timerState) {
 				if (timerState.pressTime === null)
@@ -744,26 +774,24 @@
 				const rowTop = document.createElement('div');
 				rowTop.className = 'row-top';
 
-				const timerState = timerStates[index];
-
 				recordButton.addEventListener('click', () => {
-					timerState.pressTime = new Date();
-					updateTimer(timerContainer, timerState);
-					updateDocumentTitle();
-					saveStates();
+					timerStates[index].pressTime = new Date();
+					updateTimer(timerContainer, timerStates[index]);
+					updateDocumentTitle(timerStates);
+					saveTimerStates();
 				});
 
 				recordInput.addEventListener('change', (event) => {
-					timerState.pressTime = timeStringToDate(event.target.value);
-					updateTimer(timerContainer, timerState);
-					updateDocumentTitle();
-					saveStates();
+					timerStates[index].pressTime = timeStringToDate(event.target.value);
+					updateTimer(timerContainer, timerStates[index]);
+					updateDocumentTitle(timerStates);
+					saveTimerStates();
 				});
 
 				clearButton.addEventListener('click', () => {
-					clearTimer(timerContainer, timerState);
-					updateDocumentTitle();
-					saveStates();
+					clearTimer(timerContainer, timerStates[index]);
+					updateDocumentTitle(timerStates);
+					saveTimerStates();
 				});
 
 				rowTop.appendChild(recordButton);
@@ -808,8 +836,6 @@
 				}
 			}
 
-			const DOCUMENT_TITLE = document.title;
-
 			function formatDocumentTitle() {
 				let delayHours = parseInt(delayHoursInput.value) || 0;
 				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
@@ -821,12 +847,10 @@
 				const list = [];
 
 				for (let i = 0; i < CHANNELS_MAX; i++) {
-					const timerState = timerStates[i];
-
-					if (timerState.pressTime === null)
+					if (timerStates[i].pressTime === null)
 						continue;
 
-					const respawnAvgTime = new Date(timerState.pressTime.getTime() + delayMs);
+					const respawnAvgTime = new Date(timerStates[i].pressTime.getTime() + delayMs);
 					const respawnMinTime = new Date(respawnAvgTime.getTime() - delayRandMs);
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
@@ -849,7 +873,7 @@
 				return `⌚${timers}`;
 			}
 
-			/* Helpers */
+			/* Helper Functions */
 			function updateAllTimers() {
 				children = timersContainer.getElementsByClassName('timer-container');
 
@@ -866,7 +890,7 @@
 				}
 
 				updateDocumentTitle();
-				saveStates();
+				saveTimerStates();
 			}
 
 			function updateDocumentTitle() {
@@ -916,15 +940,36 @@
 				saveSettings();
 			});
 
-			/* Init. Content */
+			/* Initialize Content */
 			ensureAllTimerContainers();
 			updateDocumentTitle();
 
 			/* Main Tick */
 			setInterval(updateContent, 1000);
 
-			/* Set Timers to Clipboard */
-			function formatTimers() {
+			/* Tools */
+			function buildShareUrl() {
+				const params = new URLSearchParams(window.location.search);
+
+				params.set('pt', encodeStatesToParam());
+
+				return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+			}
+
+			function copyShareUrl() {
+				const url = buildShareUrl();
+
+				navigator.clipboard.writeText(url).then(() => {
+					const copyLinkButton = document.getElementById('copyLinkButton');
+					const original = copyLinkButton.textContent;
+					copyLinkButton.textContent = 'Copied!';
+					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
+				}).catch(err => {
+					console.warn('Clipboard write failed:', err);
+				});
+			}
+
+			function formatPressTimes(pressTimes) {
 				let delayHours = parseInt(delayHoursInput.value) || 0;
 				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
 				let formatLocalTime = formatLocalTimeCheckbox.checked;
@@ -934,12 +979,12 @@
 				const lines = [];
 
 				for (let i = 0; i < CHANNELS_MAX; i++) {
-					const timerState = timerStates[i];
+					const pressTime = pressTimes[i];
 
-					if (timerState.pressTime === null)
+					if (pressTime === null)
 						continue;
 
-					const respawnAvgTime = new Date(timerState.pressTime.getTime() + delayMs);
+					const respawnAvgTime = new Date(pressTime.getTime() + delayMs);
 					const hh = formatLocalTime ? String(respawnAvgTime.getHours()).padStart(2, '0') : 'xx';
 					const mm = String(respawnAvgTime.getMinutes()).padStart(2, '0');
 
@@ -950,7 +995,9 @@
 			}
 
 			function setTimersToClipboard() {
-				const text = formatTimers();
+				const pressTimes = timerStates.map(state => state.pressTime);
+
+				const text = formatPressTimes(pressTimes);
 
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
@@ -960,6 +1007,8 @@
 					console.warn('Clipboard write failed:', err);
 				});
 			}
+
+			document.getElementById('copyLinkButton').addEventListener('click', copyShareUrl);
 
 			document.getElementById('copyTimersButton').addEventListener('click', setTimersToClipboard);
 
@@ -1003,6 +1052,32 @@
 			the <strong>Respawn Delay</strong> to match the boss you're hunting.
 		</p>
 	</footer>-->
+
+	<!--<script type="module">
+		import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+		import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+		import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+		const firebaseConfig = {
+			apiKey: "YOUR_API_KEY",
+			authDomain: "your-app.firebaseapp.com",
+			projectId: "your-app",
+			storageBucket: "your-app.appspot.com",
+			messagingSenderId: "1234567890",
+			appId: "1:1234567890:web:abcdef"
+		};
+
+		const app = initializeApp(firebaseConfig);
+		export const db = getFirestore(app);
+		export const auth = getAuth(app);
+
+		// Add a document
+		await addDoc(collection(db, "items"), { name: "Example", createdAt: Date.now() });
+
+		// Read documents
+		const snapshot = await getDocs(collection(db, "items"));
+		snapshot.forEach(doc => console.log(doc.id, doc.data()));
+	</script>-->
 </body>
 
 </html>
