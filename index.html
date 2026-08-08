@@ -459,10 +459,6 @@
 				<select id="bossSelect"></select>
 			</div>
 			<div class="form-group">
-				<label for="channelsInput" class="main-label">Channels</label>
-				<input type="number" id="channelsInput" class="input-channels">
-			</div>
-			<div class="form-group">
 				<label class="main-label">Respawn Delay</label>
 				<input type="number" id="delayHoursInput" class="input-time" min="0" step="1" value="1">
 				<span class="time-unit-label">hr</span>
@@ -470,7 +466,11 @@
 				<span class="time-unit-label">min</span>
 			</div>
 			<div class="form-group">
-				<label for="randomizationInput" class="main-label">Randomization</label>
+				<label for="channelsInput" class="main-label">Channels</label>
+				<input type="number" id="channelsInput" class="input-channels">
+			</div>
+			<div class="form-group">
+				<label for="randomizationInput" class="main-label">Rand.</label>
 				<input type="number" id="randomizationInput" class="input-random" min="0" max="100" step="1" value="15">
 				<span class="time-unit-label">%</span>
 			</div>
@@ -498,10 +498,10 @@
 
 			/* Get Element Handles */
 			const bossSelect = document.getElementById('bossSelect');
-			const channelsInput = document.getElementById('channelsInput');
-			const randomizationInput = document.getElementById('randomizationInput');
 			const delayHoursInput = document.getElementById('delayHoursInput');
 			const delayMinutesInput = document.getElementById('delayMinutesInput');
+			const channelsInput = document.getElementById('channelsInput');
+			const randomizationInput = document.getElementById('randomizationInput');
 			const timersContainer = document.getElementById('timerContainer');
 			const formatLocalTimeCheckbox = document.getElementById('formatLocalTimeCheckbox');
 
@@ -690,12 +690,12 @@
 
 			/* Initialize Inputs */
 			bossSelect.value = appState.bossIndex;
-			channelsInput.min = CHANNELS_MIN;
-			channelsInput.max = CHANNELS_MAX;
-			channelsInput.value = auxState.channels;
 			updateDelayInputsDisabled();
 			delayHoursInput.value = getBossDefinition().delayHours;
 			delayMinutesInput.value = getBossDefinition().delayMinutes;
+			channelsInput.min = CHANNELS_MIN;
+			channelsInput.max = CHANNELS_MAX;
+			channelsInput.value = auxState.channels;
 			randomizationInput.value = auxState.randomization;
 			formatLocalTimeCheckbox.checked = auxState.formatLocalTime;
 
@@ -1038,13 +1038,6 @@
 				saveAppState();
 			});
 
-			channelsInput.addEventListener('input', () => {
-				auxState.channels = clamp(parseInt(channelsInput.value), CHANNELS_MIN, CHANNELS_MAX);
-				channelsInput.value = auxState.channels;
-				ensureAllTimerContainers();
-				saveAppState();
-			});
-
 			delayHoursInput.addEventListener('change', () => {
 				appState.delayHours = clamp(parseInt(delayHoursInput.value), 0, 12);
 				delayHoursInput.value = getDelayHours();
@@ -1056,6 +1049,13 @@
 				appState.delayMinutes = clamp(parseInt(delayMinutesInput.value), 0, 59);
 				delayMinutesInput.value = getDelayMinutes();
 				updateContent();
+				saveAppState();
+			});
+
+			channelsInput.addEventListener('input', () => {
+				auxState.channels = clamp(parseInt(channelsInput.value), CHANNELS_MIN, CHANNELS_MAX);
+				channelsInput.value = auxState.channels;
+				ensureAllTimerContainers();
 				saveAppState();
 			});
 
