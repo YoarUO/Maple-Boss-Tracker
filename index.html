@@ -514,13 +514,15 @@
 				}
 			}
 
-			const BOSS_DEFINITIONS_COUNT = 3;
-
 			const bossDefinitions = [
 				new BossDefinition('Unspecified', 1, 0), // Default definition
 				new BossDefinition('Deo', 1, 0),
-				new BossDefinition('Seruf', 1, 0)
+				new BossDefinition('Seruf', 1, 0),
+				new BossDefinition('Manon', 1, 30),
+				new BossDefinition('Leviathan', 4, 0)
 			];
+
+			const bossDefinitionsCount = bossDefinitions.length;
 
 			function getBossDefinition() {
 				// Return default definition
@@ -566,9 +568,9 @@
 					this.bossIndex = 0;
 					this.delayHours = 1;
 					this.delayMinutes = 0;
-					this.bossStates = new Array(BOSS_DEFINITIONS_COUNT);
+					this.bossStates = new Array(bossDefinitionsCount);
 
-					for (let i = 0; i < BOSS_DEFINITIONS_COUNT; i++)
+					for (let i = 0; i < bossDefinitionsCount; i++)
 						this.bossStates[i] = new BossState();
 				}
 
@@ -583,7 +585,7 @@
 						this.delayMinutes = json.delayMinutes;
 
 					if ('bossStates' in json) {
-						for (let i = 0; i < BOSS_DEFINITIONS_COUNT && i < json.bossStates.length; i++)
+						for (let i = 0; i < bossDefinitionsCount && i < json.bossStates.length; i++)
 							this.bossStates[i].fromJson(json.bossStates[i]);
 					}
 				}
