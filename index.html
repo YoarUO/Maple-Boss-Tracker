@@ -657,7 +657,7 @@
 			}
 
 			function loadAppState() {
-				json = localStorage.getItem(APPSTATE_KEY);
+				const json = localStorage.getItem(APPSTATE_KEY);
 
 				if (json === null)
 					return;
@@ -670,7 +670,7 @@
 			}
 
 			function loadAuxState() {
-				json = localStorage.getItem(AUXSTATE_KEY);
+				const json = localStorage.getItem(AUXSTATE_KEY);
 
 				if (json === null)
 					return;
@@ -944,7 +944,7 @@
 
 				if (channelCount > currentCount) {
 					for (let i = currentCount; i < channelCount; i++) {
-						timerContainer = createTimerContainer(i);
+						const timerContainer = createTimerContainer(i);
 
 						timersContainer.appendChild(timerContainer);
 
@@ -1001,7 +1001,7 @@
 
 			/* Helper Functions */
 			function updateAllTimers() {
-				children = timersContainer.getElementsByClassName('timer-container');
+				const children = timersContainer.getElementsByClassName('timer-container');
 
 				for (let i = 0; i < children.length; i++) {
 					updateTimer(children[i], i);
@@ -1009,7 +1009,7 @@
 			}
 
 			function clearAllTimers() {
-				children = timersContainer.getElementsByClassName('timer-container');
+				const children = timersContainer.getElementsByClassName('timer-container');
 
 				for (let i = 0; i < children.length; i++) {
 					clearTimer(children[i], i);
@@ -1040,14 +1040,14 @@
 
 			delayHoursInput.addEventListener('change', () => {
 				appState.delayHours = clamp(parseInt(delayHoursInput.value), 0, 12);
-				delayHoursInput.value = getDelayHours();
+				delayHoursInput.value = appState.delayHours;
 				updateContent();
 				saveAppState();
 			});
 
 			delayMinutesInput.addEventListener('change', () => {
 				appState.delayMinutes = clamp(parseInt(delayMinutesInput.value), 0, 59);
-				delayMinutesInput.value = getDelayMinutes();
+				delayMinutesInput.value = appState.delayMinutes;
 				updateContent();
 				saveAppState();
 			});
