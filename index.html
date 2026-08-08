@@ -7,7 +7,7 @@
 	<title>Maple Boss Tracker Dashboard</title>
 	<script>
 		(function () {
-			const saved = localStorage.getItem('mapleBossTracker.theme');
+			const saved = localStorage.getItem('mapleBossTracker.theme'); // TODO: Move to AuxState?
 			if (saved === 'light')
 				document.documentElement.setAttribute('data-theme', 'light');
 		})();
@@ -166,7 +166,8 @@
 			min-width: unset;
 		}
 
-		input {
+		input,
+		select {
 			background-color: var(--bg-input);
 			border: 1px solid var(--hairline);
 			border-radius: 5px;
@@ -192,6 +193,11 @@
 		.input-random {
 			width: 56px;
 			text-align: center;
+		}
+
+		input:disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
 		}
 
 		.time-unit-label {
@@ -449,18 +455,20 @@
 		<!-- Configuration Panel -->
 		<div class="config-row">
 			<div class="form-group">
-				<label for="channelInput" class="main-label">Channels</label>
-				<input type="number" id="channelInput" class="input-channels">
+				<label for="bossSelect" class="main-label">Boss</label>
+				<select id="bossSelect"></select>
 			</div>
-
 			<div class="form-group">
-				<label class="main-label">Respawn Delay</label>
+				<label for="channelsInput" class="main-label">Channels</label>
+				<input type="number" id="channelsInput" class="input-channels">
+			</div>
+			<div class="form-group">
+				<label class="main-label">Delay</label>
 				<input type="number" id="delayHoursInput" class="input-time" min="0" step="1" value="1">
 				<span class="time-unit-label">hr</span>
 				<input type="number" id="delayMinutesInput" class="input-time" min="0" max="59" step="1" value="0">
 				<span class="time-unit-label">min</span>
 			</div>
-
 			<div class="form-group">
 				<label for="randomizationInput" class="main-label">Randomization</label>
 				<input type="number" id="randomizationInput" class="input-random" min="0" max="100" step="1" value="15">
@@ -487,122 +495,231 @@
 			const CHANNELS_MAX = 12;
 			const CHANNELS_DEFAULT = 6;
 			const RANDOMIZATION_DEFAULT = 10;
-			const SETTINGS_KEY = 'mapleBossTracker.settings';
-			const PRESS_TIMES_KEY = 'mapleBossTracker.pressTimes';
 
 			/* Get Element Handles */
-			const channelInput = document.getElementById('channelInput');
+			const bossSelect = document.getElementById('bossSelect');
+			const channelsInput = document.getElementById('channelsInput');
+			const randomizationInput = document.getElementById('randomizationInput');
 			const delayHoursInput = document.getElementById('delayHoursInput');
 			const delayMinutesInput = document.getElementById('delayMinutesInput');
-			const randomizationInput = document.getElementById('randomizationInput');
 			const timersContainer = document.getElementById('timerContainer');
 			const formatLocalTimeCheckbox = document.getElementById('formatLocalTimeCheckbox');
 
-			/* Initialize Inputs */
-			channelInput.min = CHANNELS_MIN;
-			channelInput.max = CHANNELS_MAX;
-			channelInput.value = CHANNELS_DEFAULT;
-			randomizationInput.value = RANDOMIZATION_DEFAULT;
-
-			/* Initialize Timer States */
-			const timerStates = Array.from({ length: CHANNELS_MAX }, () => ({
-				pressTime: null
-			}));
-
-			/* Load Settings, States */
-			function saveSettings() {
-				const settings = {
-					channels: channelInput.value,
-					delayHours: delayHoursInput.value,
-					delayMinutes: delayMinutesInput.value,
-					randomization: randomizationInput.value,
-					formatLocalTime: formatLocalTimeCheckbox.checked
-				};
-
-				localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-			}
-
-			function loadSettings() {
-				try {
-					const raw = localStorage.getItem(SETTINGS_KEY);
-
-					if (!raw)
-						return;
-
-					const settings = JSON.parse(raw);
-
-					if (settings.channels !== undefined)
-						channelInput.value = settings.channels;
-					if (settings.delayHours !== undefined)
-						delayHoursInput.value = settings.delayHours;
-					if (settings.delayMinutes !== undefined)
-						delayMinutesInput.value = settings.delayMinutes;
-					if (settings.randomization !== undefined)
-						randomizationInput.value = settings.randomization;
-					if (settings.formatLocalTime !== undefined)
-						formatLocalTimeCheckbox.checked = settings.formatLocalTime;
-				} catch (e) {
-					console.warn('Could not load saved settings:', e);
+			/* Boss Definitions */
+			class BossDefinition {
+				constructor(name, delayHours, delayMinutes) {
+					this.name = name;
+					this.delayHours = delayHours;
+					this.delayMinutes = delayMinutes;
 				}
 			}
 
-			function saveTimerStates() {
-				const data = timerStates.map(s => s.pressTime ? s.pressTime.toISOString() : null);
+			const BOSS_DEFINITIONS_COUNT = 3;
 
-				localStorage.setItem(PRESS_TIMES_KEY, JSON.stringify(data));
+			const bossDefinitions = [
+				new BossDefinition('Unspecified', 1, 0), // Default definition
+				new BossDefinition('Deo', 1, 0),
+				new BossDefinition('Seruf', 1, 0)
+			];
+
+			function getBossDefinition() {
+				// Return default definition
+				if (appState.bossIndex == 0) {
+					const bossDefinition = bossDefinitions[0];
+
+					bossDefinition.delayHours = appState.delayHours;
+					bossDefinition.delayMinutes = appState.delayMinutes;
+
+					return bossDefinition;
+				}
+
+				if (appState.bossIndex > 0 && appState.bossIndex < bossDefinitions.length)
+					return bossDefinitions[appState.bossIndex];
+
+				return null;
 			}
 
-			function loadTimerStates() {
-				try {
-					const raw = localStorage.getItem(PRESS_TIMES_KEY);
+			bossDefinitions.forEach((bossDefinition, index) => {
+				const option = document.createElement('option');
+				option.value = index;
+				option.textContent = bossDefinition.name;
+				bossSelect.appendChild(option);
+			});
 
-					if (!raw)
-						return;
+			/* AppState, AuxState */
+			const APPSTATE_KEY = 'mapleBossTracker.appState';
+			const AUXSTATE_KEY = 'mapleBossTracker.auxState';
 
-					const data = JSON.parse(raw);
+			class BossState {
+				constructor() {
+					this.pressTimes = new Array(CHANNELS_MAX).fill(null);
+				}
 
-					data.forEach((iso, i) => {
-						if (iso && timerStates[i]) {
-							timerStates[i].pressTime = new Date(iso);
+				fromJson(json) {
+					if ('pressTimes' in json)
+						this.pressTimes = json.pressTimes.map(s => s === null ? null : new Date(s));
+				}
+			}
+
+			class AppState {
+				constructor() {
+					this.bossIndex = 0;
+					this.delayHours = 1;
+					this.delayMinutes = 0;
+					this.bossStates = new Array(BOSS_DEFINITIONS_COUNT);
+
+					for (let i = 0; i < BOSS_DEFINITIONS_COUNT; i++)
+						this.bossStates[i] = new BossState();
+				}
+
+				fromJson(json) {
+					if ('bossIndex' in json)
+						this.bossIndex = json.bossIndex;
+
+					if ('delayHours' in json)
+						this.delayHours = json.delayHours;
+
+					if ('delayMinutes' in json)
+						this.delayMinutes = json.delayMinutes;
+
+					if ('bossStates' in json) {
+						for (let i = 0; i < BOSS_DEFINITIONS_COUNT && i < json.bossStates.length; i++)
+							this.bossStates[i].fromJson(json.bossStates[i]);
+					}
+				}
+
+				toUrlParam() {
+					const args = Array(3 + CHANNELS_MAX);
+
+					args[0] = String(this.bossIndex);
+
+					if (this.bossIndex == 0) {
+						args[1] = String(this.delayHours);
+						args[2] = String(this.delayMinutes);
+					}
+
+					if (this.bossIndex >= 0 && this.bossIndex < this.bossStates.length) {
+						const bossState = this.bossStates[this.bossIndex];
+
+						for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++)
+							args[3 + i] = (bossState.pressTimes[i] === null ? '' : String(bossState.pressTimes[i].getTime()));
+					}
+
+					return args.join(',');
+				}
+
+				fromUrlParam(ptParam) {
+					const args = ptParam.split(',');
+
+					this.bossIndex = parseInt(args[0]);
+
+					if (this.bossIndex == 0) {
+						this.delayHours = parseInt(args[1]);
+						this.delayMinutes = parseInt(args[2]);
+					}
+
+					if (this.bossIndex >= 0 && this.bossIndex < this.bossStates.length) {
+						const bossState = this.bossStates[this.bossIndex];
+
+						for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++) {
+							const arg = args[3 + i];
+
+							bossState.pressTimes[i] = (arg == '' ? null : new Date(Number(arg)));
 						}
-					});
-				} catch (e) {
-					console.warn('Could not load saved timers:', e);
+					}
 				}
 			}
 
-			loadSettings();
-			loadTimerStates();
+			class AuxState {
+				constructor() {
+					this.channels = CHANNELS_DEFAULT;
+					this.randomization = RANDOMIZATION_DEFAULT;
+					this.formatLocalTime = false;
+				}
+
+				fromJson(json) {
+					if ('channels' in json)
+						this.channels = json.channels;
+
+					if ('randomization' in json)
+						this.randomization = json.randomization;
+
+					if ('formatLocalTime' in json)
+						this.formatLocalTime = json.formatLocalTime;
+				}
+			}
+
+			const appState = new AppState();
+			const auxState = new AuxState();
+
+			function saveAppState() {
+				localStorage.setItem(APPSTATE_KEY, JSON.stringify(appState));
+			}
+
+			function loadAppState() {
+				json = localStorage.getItem(APPSTATE_KEY);
+
+				if (json === null)
+					return;
+
+				appState.fromJson(JSON.parse(json));
+			}
+
+			function saveAuxState() {
+				localStorage.setItem(AUXSTATE_KEY, JSON.stringify(auxState));
+			}
+
+			function loadAuxState() {
+				json = localStorage.getItem(AUXSTATE_KEY);
+
+				if (json === null)
+					return;
+
+				auxState.fromJson(JSON.parse(json));
+			}
+
+			loadAppState();
+			loadAuxState();
+
+			function getBossState() {
+				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length)
+					return appState.bossStates[appState.bossIndex];
+
+				return null;
+			}
+
+			/* Initialize Inputs */
+			bossSelect.value = appState.bossIndex;
+			channelsInput.min = CHANNELS_MIN;
+			channelsInput.max = CHANNELS_MAX;
+			channelsInput.value = auxState.channels;
+			updateDelayInputsDisabled();
+			delayHoursInput.value = getBossDefinition().delayHours;
+			delayMinutesInput.value = getBossDefinition().delayMinutes;
+			randomizationInput.value = auxState.randomization;
+			formatLocalTimeCheckbox.checked = auxState.formatLocalTime;
 
 			/* URL Params */
-			function encodeStatesToParam() {
-				return timerStates
-					.map(s => s.pressTime ? s.pressTime.getTime() : '')
-					.join(',');
-			}
-
-			function decodeParamToStates(param) {
-				return param.split(',').map(v => v ? new Date(Number(v)) : null);
-			}
-
-			function loadStateFromUrl() {
+			function loadAppStateFromUrl() {
 				const params = new URLSearchParams(window.location.search);
 				const ptParam = params.get('pt');
 
 				if (!ptParam)
 					return;
 
-				decodeParamToStates(ptParam).forEach((pressTime, i) => {
-					if (timerStates[i]) timerStates[i].pressTime = pressTime;
-				});
+				appState.fromUrlParam(ptParam);
 
 				// Strip the params from the visible URL now that they're processed
 				history.replaceState(null, '', window.location.pathname);
 			}
 
-			loadStateFromUrl();
+			loadAppStateFromUrl();
 
 			/* Utility Functions */
+			function clamp(value, min, max) {
+				return Math.min(Math.max(value, min), max);
+			}
+
 			function toggleClass(element, classNames, classIndex) {
 				for (let i = 0; i < classNames.length; i++) {
 					element.classList.toggle(classNames[i], classIndex == i);
@@ -654,15 +771,25 @@
 			const SOON_THRESHOLD_MS = 300000;
 			const DOCUMENT_TITLE = document.title;
 
-			function updateTimer(timerContainer, timerState) {
-				if (timerState.pressTime === null)
+			function updateDelayInputsDisabled() {
+				const disabled = (appState.bossIndex != 0);
+				delayHoursInput.disabled = disabled;
+				delayMinutesInput.disabled = disabled;
+			}
+
+			function updateTimer(timerContainer, index) {
+				const pressTime = getBossState().pressTimes[index];
+
+				if (pressTime === null) {
+					clearTimer(timerContainer, index);
 					return;
+				}
 
-				let delayHours = parseInt(delayHoursInput.value) || 0;
-				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
-				let delayRandPerc = parseInt(randomizationInput.value) || 0;
+				const bossDefition = getBossDefinition();
+				const delayHours = bossDefition.delayHours;
+				const delayMinutes = bossDefition.delayMinutes;
+				const delayRandPerc = auxState.randomization;
 
-				const pressTime = timerState.pressTime;
 				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
 				const delayRandMs = delayRandPerc * delayMs / 100;
 				const respawnAvgTime = new Date(pressTime.getTime() + delayMs);
@@ -710,7 +837,9 @@
 				}
 			}
 
-			function clearTimer(timerContainer, timerState) {
+			function clearTimer(timerContainer, index) {
+				getBossState().pressTimes[index] = null;
+
 				const recordInput = timerContainer.querySelector('#recordInput');
 				const respawnAvgLabel = timerContainer.querySelector('#respawnAvgLabel');
 				const respawnMinLabel = timerContainer.querySelector('#respawnMinLabel');
@@ -733,7 +862,6 @@
 					countdownLabel.textContent = '';
 
 				toggleClass(timerContainer, COUNTDOWN_STAGES, -1);
-				timerState.pressTime = null;
 			}
 
 			function createTimerContainer(index) {
@@ -775,23 +903,26 @@
 				rowTop.className = 'row-top';
 
 				recordButton.addEventListener('click', () => {
-					timerStates[index].pressTime = new Date();
-					updateTimer(timerContainer, timerStates[index]);
-					updateDocumentTitle(timerStates);
-					saveTimerStates();
+					const bossState = getBossState();
+					bossState.pressTimes[index] = new Date();
+					updateTimer(timerContainer, index);
+					updateDocumentTitle(bossState.pressTimes);
+					saveAppState();
 				});
 
 				recordInput.addEventListener('change', (event) => {
-					timerStates[index].pressTime = timeStringToDate(event.target.value);
-					updateTimer(timerContainer, timerStates[index]);
-					updateDocumentTitle(timerStates);
-					saveTimerStates();
+					const bossState = getBossState();
+					bossState.pressTimes[index] = timeStringToDate(event.target.value);
+					updateTimer(timerContainer, index);
+					updateDocumentTitle(bossState.pressTimes);
+					saveAppState();
 				});
 
 				clearButton.addEventListener('click', () => {
-					clearTimer(timerContainer, timerStates[index]);
-					updateDocumentTitle(timerStates);
-					saveTimerStates();
+					const bossState = getBossState();
+					clearTimer(timerContainer, index);
+					updateDocumentTitle(bossState.pressTimes);
+					saveAppState();
 				});
 
 				rowTop.appendChild(recordButton);
@@ -808,15 +939,7 @@
 			}
 
 			function ensureAllTimerContainers() {
-				let channelCount = parseInt(channelInput.value) || CHANNELS_DEFAULT;
-
-				if (channelCount < CHANNELS_MIN)
-					channelCount = CHANNELS_MIN;
-				else if (channelCount > CHANNELS_MAX)
-					channelCount = CHANNELS_MAX;
-
-				channelInput.value = channelCount;
-
+				const channelCount = auxState.channels;
 				const currentCount = timersContainer.getElementsByClassName('timer-container').length;
 
 				if (channelCount > currentCount) {
@@ -825,7 +948,7 @@
 
 						timersContainer.appendChild(timerContainer);
 
-						updateTimer(timerContainer, timerStates[i]);
+						updateTimer(timerContainer, i);
 					}
 				} else if (channelCount < currentCount) {
 					while (timersContainer.getElementsByClassName('timer-container').length > channelCount) {
@@ -837,9 +960,10 @@
 			}
 
 			function formatDocumentTitle() {
-				let delayHours = parseInt(delayHoursInput.value) || 0;
-				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
-				let delayRandPerc = parseInt(randomizationInput.value) || 0;
+				const bossDefition = getBossDefinition();
+				const delayHours = bossDefition.delayHours;
+				const delayMinutes = bossDefition.delayMinutes;
+				const delayRandPerc = auxState.randomization;
 
 				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
 				const delayRandMs = delayRandPerc * delayMs / 100;
@@ -847,10 +971,12 @@
 				const list = [];
 
 				for (let i = 0; i < CHANNELS_MAX; i++) {
-					if (timerStates[i].pressTime === null)
+					const pressTime = getBossState().pressTimes[i];
+
+					if (pressTime === null)
 						continue;
 
-					const respawnAvgTime = new Date(timerStates[i].pressTime.getTime() + delayMs);
+					const respawnAvgTime = new Date(pressTime.getTime() + delayMs);
 					const respawnMinTime = new Date(respawnAvgTime.getTime() - delayRandMs);
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
@@ -878,7 +1004,7 @@
 				children = timersContainer.getElementsByClassName('timer-container');
 
 				for (let i = 0; i < children.length; i++) {
-					updateTimer(children[i], timerStates[i]);
+					updateTimer(children[i], i);
 				}
 			}
 
@@ -886,11 +1012,11 @@
 				children = timersContainer.getElementsByClassName('timer-container');
 
 				for (let i = 0; i < children.length; i++) {
-					clearTimer(children[i], timerStates[i]);
+					clearTimer(children[i], i);
 				}
 
 				updateDocumentTitle();
-				saveTimerStates();
+				saveAppState();
 			}
 
 			function updateDocumentTitle() {
@@ -903,41 +1029,41 @@
 			}
 
 			/* Input Events */
-			channelInput.addEventListener('input', () => {
+			bossSelect.addEventListener('change', () => {
+				appState.bossIndex = parseInt(bossSelect.value);
+				delayHoursInput.value = getBossDefinition().delayHours;
+				delayMinutesInput.value = getBossDefinition().delayMinutes;
+				updateDelayInputsDisabled();
+				updateContent();
+				saveAppState();
+			});
+
+			channelsInput.addEventListener('input', () => {
+				auxState.channels = clamp(parseInt(channelsInput.value), CHANNELS_MIN, CHANNELS_MAX);
+				channelsInput.value = auxState.channels;
 				ensureAllTimerContainers();
-				saveSettings();
+				saveAppState();
 			});
 
 			delayHoursInput.addEventListener('change', () => {
-				if (parseInt(delayHoursInput.value) < 0)
-					delayHoursInput.value = 0;
-
+				appState.delayHours = clamp(parseInt(delayHoursInput.value), 0, 12);
+				delayHoursInput.value = getDelayHours();
 				updateContent();
-				saveSettings();
+				saveAppState();
 			});
 
 			delayMinutesInput.addEventListener('change', () => {
-				let minutes = parseInt(delayMinutesInput.value);
-
-				if (minutes < 0)
-					delayMinutesInput.value = 0;
-				else if (minutes > 59)
-					delayMinutesInput.value = 59;
-
+				appState.delayMinutes = clamp(parseInt(delayMinutesInput.value), 0, 59);
+				delayMinutesInput.value = getDelayMinutes();
 				updateContent();
-				saveSettings();
+				saveAppState();
 			});
 
 			randomizationInput.addEventListener('change', () => {
-				let randomization = parseInt(randomizationInput.value);
-
-				if (randomization < 0)
-					randomizationInput.value = 0;
-				else if (randomization > 100)
-					randomizationInput.value = 100;
-
+				auxState.randomization = clamp(parseInt(randomizationInput.value), 0, 100);
+				randomizationInput.value = auxState.randomization;
 				updateContent();
-				saveSettings();
+				saveAppState();
 			});
 
 			/* Initialize Content */
@@ -951,7 +1077,7 @@
 			function buildShareUrl() {
 				const params = new URLSearchParams(window.location.search);
 
-				params.set('pt', encodeStatesToParam());
+				params.set('pt', appState.toUrlParam());
 
 				return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 			}
@@ -970,9 +1096,10 @@
 			}
 
 			function formatPressTimes(pressTimes) {
-				let delayHours = parseInt(delayHoursInput.value) || 0;
-				let delayMinutes = parseInt(delayMinutesInput.value) || 0;
-				let formatLocalTime = formatLocalTimeCheckbox.checked;
+				const bossDefition = getBossDefinition();
+				const delayHours = bossDefition.delayHours;
+				const delayMinutes = bossDefition.delayMinutes;
+				const formatLocalTime = auxState.formatLocalTime;
 
 				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
 
@@ -995,9 +1122,7 @@
 			}
 
 			function setTimersToClipboard() {
-				const pressTimes = timerStates.map(state => state.pressTime);
-
-				const text = formatPressTimes(pressTimes);
+				const text = formatPressTimes(getBossState().pressTimes);
 
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
@@ -1012,7 +1137,10 @@
 
 			document.getElementById('copyTimersButton').addEventListener('click', setTimersToClipboard);
 
-			formatLocalTimeCheckbox.addEventListener('change', saveSettings);
+			formatLocalTimeCheckbox.addEventListener('change', () => {
+				auxState.formatLocalTime = formatLocalTimeCheckbox.checked;
+				saveAuxState();
+			});
 
 			document.getElementById('clearTimersButton').addEventListener('click', clearAllTimers);
 
