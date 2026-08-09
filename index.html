@@ -7,7 +7,7 @@
 	<title>Maple Boss Tracker Dashboard</title>
 	<script>
 		(function () {
-			const saved = localStorage.getItem('mapleBossTracker.theme'); // TODO: Move to AuxState?
+			const saved = localStorage.getItem('mapleBossTracker.theme'); // TODO: Move to AppState?
 			if (saved === 'light')
 				document.documentElement.setAttribute('data-theme', 'light');
 		})();
@@ -470,15 +470,16 @@
 				<input type="number" id="channelsInput" class="input-channels">
 			</div>
 			<div class="form-group">
-				<label for="randomizationInput" class="main-label">Rand.</label>
-				<input type="number" id="randomizationInput" class="input-random" min="0" max="100" step="1" value="15">
+				<label for="delayRandPercInput" class="main-label">Rand.</label>
+				<input type="number" id="delayRandPercInput" class="input-random" min="0" max="100" step="1" value="15">
 				<span class="time-unit-label">%</span>
 			</div>
 		</div>
 
-		<!-- Timer Cards -->
+		<!-- Timer Containers -->
 		<div id="timerContainer"></div>
 
+		<!-- Tools Panel -->
 		<div class="tools-row">
 			<button id="copyLinkButton" type="button">Copy Link</button>
 			<button id="copyTimersButton" type="button">Copy Timers</button>
@@ -494,32 +495,32 @@
 			const CHANNELS_MIN = 1;
 			const CHANNELS_MAX = 12;
 			const CHANNELS_DEFAULT = 6;
-			const RANDOMIZATION_DEFAULT = 10;
+			const DELAY_RAND_PERC_DEFAULT = 10;
+			const APPSTATE_KEY = 'mapleBossTracker.appState';
 
 			/* Get Element Handles */
 			const bossSelect = document.getElementById('bossSelect');
 			const delayHoursInput = document.getElementById('delayHoursInput');
 			const delayMinutesInput = document.getElementById('delayMinutesInput');
 			const channelsInput = document.getElementById('channelsInput');
-			const randomizationInput = document.getElementById('randomizationInput');
+			const delayRandPercInput = document.getElementById('delayRandPercInput');
 			const timersContainer = document.getElementById('timerContainer');
 			const formatLocalTimeCheckbox = document.getElementById('formatLocalTimeCheckbox');
 
 			/* Boss Definitions */
 			class BossDefinition {
-				constructor(name, delayHours, delayMinutes) {
+				constructor(name, delayMinutes) {
 					this.name = name;
-					this.delayHours = delayHours;
 					this.delayMinutes = delayMinutes;
 				}
 			}
 
 			const bossDefinitions = [
-				new BossDefinition('Unspecified', 1, 0), // Default definition
-				new BossDefinition('Deo', 1, 0),
-				new BossDefinition('Seruf', 1, 0),
-				new BossDefinition('Manon', 1, 30),
-				new BossDefinition('Leviathan', 4, 0)
+				new BossDefinition('Unspecified', 60), // Default definition
+				new BossDefinition('Deo', 60),
+				new BossDefinition('Seruf', 60),
+				new BossDefinition('Manon', 90),
+				new BossDefinition('Leviathan', 240)
 			];
 
 			const bossDefinitionsCount = bossDefinitions.length;
@@ -529,7 +530,6 @@
 				if (appState.bossIndex == 0) {
 					const bossDefinition = bossDefinitions[0];
 
-					bossDefinition.delayHours = appState.delayHours;
 					bossDefinition.delayMinutes = appState.delayMinutes;
 
 					return bossDefinition;
@@ -548,10 +548,7 @@
 				bossSelect.appendChild(option);
 			});
 
-			/* AppState, AuxState */
-			const APPSTATE_KEY = 'mapleBossTracker.appState';
-			const AUXSTATE_KEY = 'mapleBossTracker.auxState';
-
+			/* AppState */
 			class BossState {
 				constructor() {
 					this.pressTimes = new Array(CHANNELS_MAX).fill(null);
@@ -565,21 +562,27 @@
 
 			class AppState {
 				constructor() {
+					this.channels = CHANNELS_DEFAULT;
+					this.delayRandPerc = DELAY_RAND_PERC_DEFAULT;
 					this.bossIndex = 0;
-					this.delayHours = 1;
-					this.delayMinutes = 0;
+					this.delayMinutes = 60;
 					this.bossStates = new Array(bossDefinitionsCount);
 
 					for (let i = 0; i < bossDefinitionsCount; i++)
 						this.bossStates[i] = new BossState();
+
+					this.formatLocalTime = false;
 				}
 
 				fromJson(json) {
+					if ('channels' in json)
+						this.channels = json.channels;
+
+					if ('delayRandPerc' in json)
+						this.delayRandPerc = json.delayRandPerc;
+
 					if ('bossIndex' in json)
 						this.bossIndex = json.bossIndex;
-
-					if ('delayHours' in json)
-						this.delayHours = json.delayHours;
 
 					if ('delayMinutes' in json)
 						this.delayMinutes = json.delayMinutes;
@@ -588,63 +591,6 @@
 						for (let i = 0; i < bossDefinitionsCount && i < json.bossStates.length; i++)
 							this.bossStates[i].fromJson(json.bossStates[i]);
 					}
-				}
-
-				toUrlParam() {
-					const args = Array(3 + CHANNELS_MAX);
-
-					args[0] = String(this.bossIndex);
-
-					if (this.bossIndex == 0) {
-						args[1] = String(this.delayHours);
-						args[2] = String(this.delayMinutes);
-					}
-
-					if (this.bossIndex >= 0 && this.bossIndex < this.bossStates.length) {
-						const bossState = this.bossStates[this.bossIndex];
-
-						for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++)
-							args[3 + i] = (bossState.pressTimes[i] === null ? '' : String(bossState.pressTimes[i].getTime()));
-					}
-
-					return args.join(',');
-				}
-
-				fromUrlParam(ptParam) {
-					const args = ptParam.split(',');
-
-					this.bossIndex = parseInt(args[0]);
-
-					if (this.bossIndex == 0) {
-						this.delayHours = parseInt(args[1]);
-						this.delayMinutes = parseInt(args[2]);
-					}
-
-					if (this.bossIndex >= 0 && this.bossIndex < this.bossStates.length) {
-						const bossState = this.bossStates[this.bossIndex];
-
-						for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++) {
-							const arg = args[3 + i];
-
-							bossState.pressTimes[i] = (arg == '' ? null : new Date(Number(arg)));
-						}
-					}
-				}
-			}
-
-			class AuxState {
-				constructor() {
-					this.channels = CHANNELS_DEFAULT;
-					this.randomization = RANDOMIZATION_DEFAULT;
-					this.formatLocalTime = false;
-				}
-
-				fromJson(json) {
-					if ('channels' in json)
-						this.channels = json.channels;
-
-					if ('randomization' in json)
-						this.randomization = json.randomization;
 
 					if ('formatLocalTime' in json)
 						this.formatLocalTime = json.formatLocalTime;
@@ -652,7 +598,6 @@
 			}
 
 			const appState = new AppState();
-			const auxState = new AuxState();
 
 			function saveAppState() {
 				localStorage.setItem(APPSTATE_KEY, JSON.stringify(appState));
@@ -667,21 +612,7 @@
 				appState.fromJson(JSON.parse(json));
 			}
 
-			function saveAuxState() {
-				localStorage.setItem(AUXSTATE_KEY, JSON.stringify(auxState));
-			}
-
-			function loadAuxState() {
-				const json = localStorage.getItem(AUXSTATE_KEY);
-
-				if (json === null)
-					return;
-
-				auxState.fromJson(JSON.parse(json));
-			}
-
 			loadAppState();
-			loadAuxState();
 
 			function getBossState() {
 				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length)
@@ -690,32 +621,74 @@
 				return null;
 			}
 
+			function updateDelayInputsDisabled() {
+				const disabled = (appState.bossIndex != 0);
+				delayHoursInput.disabled = disabled;
+				delayMinutesInput.disabled = disabled;
+			}
+
+			function updateDelayInputsValue() {
+				const delayMinutes = getBossDefinition().delayMinutes;
+				delayHoursInput.value = Math.floor(delayMinutes / 60);
+				delayMinutesInput.value = delayMinutes % 60;
+			}
+
 			/* Initialize Inputs */
+			channelsInput.value = appState.channels;
+			delayRandPercInput.value = appState.delayRandPerc;
 			bossSelect.value = appState.bossIndex;
 			updateDelayInputsDisabled();
-			delayHoursInput.value = getBossDefinition().delayHours;
-			delayMinutesInput.value = getBossDefinition().delayMinutes;
+			updateDelayInputsValue();
 			channelsInput.min = CHANNELS_MIN;
 			channelsInput.max = CHANNELS_MAX;
-			channelsInput.value = auxState.channels;
-			randomizationInput.value = auxState.randomization;
-			formatLocalTimeCheckbox.checked = auxState.formatLocalTime;
+			formatLocalTimeCheckbox.checked = appState.formatLocalTime;
 
 			/* URL Params */
-			function loadAppStateFromUrl() {
+			function formatUrlParam() {
+				const args = Array(1 + CHANNELS_MAX);
+
+				args[0] = String(appState.bossIndex);
+
+				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length) {
+					const bossState = appState.bossStates[appState.bossIndex];
+
+					for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++)
+						args[1 + i] = (bossState.pressTimes[i] === null ? '' : String(bossState.pressTimes[i].getTime()));
+				}
+
+				return args.join(',');
+			}
+
+			function parseUrlParam(ptParam) {
+				const args = ptParam.split(',');
+
+				appState.bossIndex = parseInt(args[0]);
+
+				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length) {
+					const bossState = appState.bossStates[appState.bossIndex];
+
+					for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++) {
+						const arg = args[1 + i];
+
+						bossState.pressTimes[i] = (arg == '' ? null : new Date(Number(arg)));
+					}
+				}
+			}
+
+			function loadUrlParam() {
 				const params = new URLSearchParams(window.location.search);
 				const ptParam = params.get('pt');
 
 				if (!ptParam)
 					return;
 
-				appState.fromUrlParam(ptParam);
+				parseUrlParam(ptParam);
 
 				// Strip the params from the visible URL now that they're processed
 				history.replaceState(null, '', window.location.pathname);
 			}
 
-			loadAppStateFromUrl();
+			loadUrlParam();
 
 			/* Utility Functions */
 			function clamp(value, min, max) {
@@ -773,12 +746,6 @@
 			const SOON_THRESHOLD_MS = 300000;
 			const DOCUMENT_TITLE = document.title;
 
-			function updateDelayInputsDisabled() {
-				const disabled = (appState.bossIndex != 0);
-				delayHoursInput.disabled = disabled;
-				delayMinutesInput.disabled = disabled;
-			}
-
 			function updateTimer(timerContainer, index) {
 				const pressTime = getBossState().pressTimes[index];
 
@@ -788,11 +755,10 @@
 				}
 
 				const bossDefition = getBossDefinition();
-				const delayHours = bossDefition.delayHours;
 				const delayMinutes = bossDefition.delayMinutes;
-				const delayRandPerc = auxState.randomization;
+				const delayRandPerc = appState.delayRandPerc;
 
-				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
+				const delayMs = delayMinutes * 60 * 1000;
 				const delayRandMs = delayRandPerc * delayMs / 100;
 				const respawnAvgTime = new Date(pressTime.getTime() + delayMs);
 				const respawnMinTime = new Date(respawnAvgTime.getTime() - delayRandMs);
@@ -905,25 +871,22 @@
 				rowTop.className = 'row-top';
 
 				recordButton.addEventListener('click', () => {
-					const bossState = getBossState();
-					bossState.pressTimes[index] = new Date();
+					getBossState().pressTimes[index] = new Date();
 					updateTimer(timerContainer, index);
-					updateDocumentTitle(bossState.pressTimes);
+					updateDocumentTitle();
 					saveAppState();
 				});
 
 				recordInput.addEventListener('change', (event) => {
-					const bossState = getBossState();
-					bossState.pressTimes[index] = timeStringToDate(event.target.value);
+					getBossState().pressTimes[index] = timeStringToDate(event.target.value);
 					updateTimer(timerContainer, index);
-					updateDocumentTitle(bossState.pressTimes);
+					updateDocumentTitle();
 					saveAppState();
 				});
 
 				clearButton.addEventListener('click', () => {
-					const bossState = getBossState();
 					clearTimer(timerContainer, index);
-					updateDocumentTitle(bossState.pressTimes);
+					updateDocumentTitle();
 					saveAppState();
 				});
 
@@ -941,7 +904,7 @@
 			}
 
 			function ensureAllTimerContainers() {
-				const channelCount = auxState.channels;
+				const channelCount = appState.channels;
 				const currentCount = timersContainer.getElementsByClassName('timer-container').length;
 
 				if (channelCount > currentCount) {
@@ -963,11 +926,10 @@
 
 			function formatDocumentTitle() {
 				const bossDefition = getBossDefinition();
-				const delayHours = bossDefition.delayHours;
 				const delayMinutes = bossDefition.delayMinutes;
-				const delayRandPerc = auxState.randomization;
+				const delayRandPerc = appState.delayRandPerc;
 
-				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
+				const delayMs = delayMinutes * 60 * 1000;
 				const delayRandMs = delayRandPerc * delayMs / 100;
 
 				const list = [];
@@ -1031,42 +993,39 @@
 			}
 
 			/* Input Events */
-			bossSelect.addEventListener('change', () => {
-				appState.bossIndex = parseInt(bossSelect.value);
-				delayHoursInput.value = getBossDefinition().delayHours;
-				delayMinutesInput.value = getBossDefinition().delayMinutes;
-				updateDelayInputsDisabled();
-				updateContent();
-				saveAppState();
-			});
-
-			delayHoursInput.addEventListener('change', () => {
-				appState.delayHours = clamp(parseInt(delayHoursInput.value), 0, 12);
-				delayHoursInput.value = appState.delayHours;
-				updateContent();
-				saveAppState();
-			});
-
-			delayMinutesInput.addEventListener('change', () => {
-				appState.delayMinutes = clamp(parseInt(delayMinutesInput.value), 0, 59);
-				delayMinutesInput.value = appState.delayMinutes;
-				updateContent();
-				saveAppState();
-			});
-
 			channelsInput.addEventListener('input', () => {
-				auxState.channels = clamp(parseInt(channelsInput.value), CHANNELS_MIN, CHANNELS_MAX);
-				channelsInput.value = auxState.channels;
+				appState.channels = clamp(parseInt(channelsInput.value), CHANNELS_MIN, CHANNELS_MAX);
+				channelsInput.value = appState.channels;
 				ensureAllTimerContainers();
 				saveAppState();
 			});
 
-			randomizationInput.addEventListener('change', () => {
-				auxState.randomization = clamp(parseInt(randomizationInput.value), 0, 100);
-				randomizationInput.value = auxState.randomization;
+			delayRandPercInput.addEventListener('change', () => {
+				appState.delayRandPerc = clamp(parseInt(delayRandPercInput.value), 0, 100);
+				delayRandPercInput.value = appState.delayRandPerc;
 				updateContent();
 				saveAppState();
 			});
+
+			bossSelect.addEventListener('change', () => {
+				appState.bossIndex = parseInt(bossSelect.value);
+				updateDelayInputsDisabled();
+				updateDelayInputsValue();
+				updateContent();
+				saveAppState();
+			});
+
+			function onDelayInputChanged() {
+				const hours = clamp(parseInt(delayHoursInput.value), 0, 23);
+				const minutes = clamp(parseInt(delayMinutesInput.value), 0, 59);
+				appState.delayMinutes = hours * 60 + minutes;
+				updateDelayInputsValue();
+				updateContent();
+				saveAppState();
+			}
+
+			delayHoursInput.addEventListener('change', onDelayInputChanged);
+			delayMinutesInput.addEventListener('change', onDelayInputChanged);
 
 			/* Initialize Content */
 			ensureAllTimerContainers();
@@ -1079,7 +1038,7 @@
 			function buildShareUrl() {
 				const params = new URLSearchParams(window.location.search);
 
-				params.set('pt', appState.toUrlParam());
+				params.set('pt', formatUrlParam());
 
 				return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 			}
@@ -1099,11 +1058,10 @@
 
 			function formatPressTimes(pressTimes) {
 				const bossDefition = getBossDefinition();
-				const delayHours = bossDefition.delayHours;
 				const delayMinutes = bossDefition.delayMinutes;
-				const formatLocalTime = auxState.formatLocalTime;
+				const formatLocalTime = appState.formatLocalTime;
 
-				const delayMs = ((delayHours * 60) + delayMinutes) * 60 * 1000;
+				const delayMs = delayMinutes * 60 * 1000;
 
 				const lines = [];
 
@@ -1113,9 +1071,8 @@
 					if (pressTime === null)
 						continue;
 
-					const respawnAvgTime = new Date(pressTime.getTime() + delayMs);
-					const hh = formatLocalTime ? String(respawnAvgTime.getHours()).padStart(2, '0') : 'xx';
-					const mm = String(respawnAvgTime.getMinutes()).padStart(2, '0');
+					const hh = formatLocalTime ? String(pressTime.getHours()).padStart(2, '0') : 'xx';
+					const mm = String(pressTime.getMinutes()).padStart(2, '0');
 
 					lines.push(`ch${i + 1}: ${hh}:${mm}`);
 				}
@@ -1123,7 +1080,7 @@
 				return lines.join('\n');
 			}
 
-			function setTimersToClipboard() {
+			function timersToClipboard() {
 				const text = formatPressTimes(getBossState().pressTimes);
 
 				navigator.clipboard.writeText(text).then(() => {
@@ -1137,11 +1094,13 @@
 
 			document.getElementById('copyLinkButton').addEventListener('click', copyShareUrl);
 
-			document.getElementById('copyTimersButton').addEventListener('click', setTimersToClipboard);
+			document.getElementById('copyTimersButton').addEventListener('click', timersToClipboard);
+
+			// TODO: Timers from clipboard
 
 			formatLocalTimeCheckbox.addEventListener('change', () => {
-				auxState.formatLocalTime = formatLocalTimeCheckbox.checked;
-				saveAuxState();
+				appState.formatLocalTime = formatLocalTimeCheckbox.checked;
+				saveAppState();
 			});
 
 			document.getElementById('clearTimersButton').addEventListener('click', clearAllTimers);
