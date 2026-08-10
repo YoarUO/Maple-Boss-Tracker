@@ -661,15 +661,22 @@
 				return null;
 			}
 
-			function getPressTime(index) {
-				return getBossState().pressTimes[index];
-			}
-
 			function writePressTimeToFirestore(bossIndex, channelIndex, pressTime) {
-				const { db, doc, setDoc } = window.__firebase;
-				const ref = doc(db, 'rooms', appState.roomId, 'bosses', String(bossIndex));
+				const db = window.__firebase.db;
+				const doc = window.__firebase.doc;
+				const setDoc = window.__firebase.setDoc;
 
-				setDoc(ref, { pressTimes: { [channelIndex]: pressTime } }, { merge: true });
+				const docRef = doc(db, 'rooms', appState.roomId, 'bosses', String(bossIndex));
+
+				const data = {
+					pressTimesMap: {}
+				};
+
+				data.pressTimesMap[channelIndex] = pressTime;
+
+				const options = { merge: true };
+
+				setDoc(docRef, data, options);
 			}
 
 			let unsubscribeFromBoss = null;
@@ -678,24 +685,25 @@
 				if (unsubscribeFromBoss)
 					unsubscribeFromBoss();
 
-				const { db, doc, onSnapshot } = window.__firebase;
-				const ref = doc(db, 'rooms', appState.roomId, 'bosses', String(bossIndex));
+				const db = window.__firebase.db;
+				const doc = window.__firebase.doc;
+				const onSnapshot = window.__firebase.onSnapshot;
 
-				unsubscribeFromBoss = onSnapshot(ref, (snap) => {
+				const docRef = doc(db, 'rooms', appState.roomId, 'bosses', String(bossIndex));
+
+				unsubscribeFromBoss = onSnapshot(docRef, (snap) => {
 					const data = snap.data();
 
-					if (!data)
+					if (!data || !data.pressTimesMap)
 						return;
 
-					const pressTimesMap = data.pressTimes || {};
-					const pressTimes = Array(CHANNELS_MAX).fill(null);
+					const pressTimes = appState.bossStates[bossIndex].pressTimes;
 
-					for (let i = 0; i < CHANNELS_MAX; i++) {
-						const ts = pressTimesMap[i];
-						pressTimes[i] = (ts == null) ? null : ts.toDate();
+					for (let i = 0; i < CHANNELS_MAX && i < pressTimes.length; i++) {
+						const pressTime = data.pressTimesMap[i];
+
+						pressTimes[i] = (pressTime == null ? null : pressTime.toDate());
 					}
-
-					appState.bossStates[bossIndex].pressTimes = pressTimes;
 
 					updateAllTimers();
 					updateDocumentTitle();
@@ -714,13 +722,17 @@
 					subscribeToBoss(appState.bossIndex);
 			}
 
+			function getPressTime(index) {
+				return getBossState().pressTimes[index];
+			}
+
 			function setPressTime(index, pressTime) {
 				getBossState().pressTimes[index] = pressTime;
-				if (appState.syncMode) {
+
+				if (appState.syncMode)
 					writePressTimeToFirestore(appState.bossIndex, index, pressTime);
-				} else {
+				else
 					saveAppState();
-				}
 			}
 
 			function updateDelayInputsDisabled() {
@@ -874,8 +886,10 @@
 				const respawnMaxLabel = timerContainer.querySelector('#respawnMaxLabel');
 				const countdownLabel = timerContainer.querySelector('#countdownLabel');
 
-				if (pressTime === null) {
-					if (recordInput)
+				const recordInputFocused = recordInput && document.activeElement === recordInput;
+
+				if (pressTime === null || isNaN(pressTime)) {
+					if (recordInput && !recordInputFocused)
 						recordInput.value = '';
 
 					if (respawnAvgLabel)
@@ -905,7 +919,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					if (recordInput) {
+					if (recordInput && !recordInputFocused) {
 						const hh = String(pressTime.getHours()).padStart(2, '0');
 						const mm = String(pressTime.getMinutes()).padStart(2, '0');
 
