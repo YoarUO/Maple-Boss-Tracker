@@ -431,6 +431,38 @@
 			align-items: center;
 			align-self: center;
 		}
+
+		.options-menu-wrapper {
+			position: relative;
+			display: flex;
+			align-items: center;
+			align-self: center;
+			margin-left: 12px;
+		}
+
+		.options-menu {
+			position: absolute;
+			top: calc(100% + 8px);
+			right: 0;
+			z-index: 20;
+			display: flex;
+			flex-direction: column;
+			gap: 14px;
+			min-width: 200px;
+			background-color: var(--bg-panel);
+			border: 1px solid var(--hairline);
+			border-radius: 8px;
+			padding: 16px;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+		}
+
+		.options-menu[hidden] {
+			display: none;
+		}
+
+		.options-menu .form-group {
+			justify-content: space-between;
+		}
 	</style>
 </head>
 
@@ -449,6 +481,28 @@
 		<div class="theme-toggle">
 			<button id="themeToggleButton" type="button">☀</button>
 		</div>
+		<div class="options-menu-wrapper">
+			<button id="optionsToggleButton" type="button" aria-expanded="false" aria-controls="optionsMenu">⚙</button>
+			<div id="optionsMenu" class="options-menu" hidden>
+				<div class="form-group">
+					<label for="channelsInput" class="main-label">Channels</label>
+					<input type="number" id="channelsInput" class="input-channels">
+				</div>
+				<div class="form-group">
+					<label for="delayRandPercInput" class="main-label">Rand.</label>
+					<input type="number" id="delayRandPercInput" class="input-random" min="0" max="100" step="1" value="15">
+					<span class="time-unit-label">%</span>
+				</div>
+				<div class="form-group checkbox-group">
+					<input type="checkbox" id="formatLocalTimeCheckbox" class="styled-checkbox">
+					<label for="formatLocalTimeCheckbox" class="checkbox-label">Format Local Time</label>
+				</div>
+				<div class="form-group checkbox-group">
+					<input type="checkbox" id="syncModeCheckbox" class="styled-checkbox">
+					<label for="syncModeCheckbox" class="checkbox-label">Sync Mode</label>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<div class="page-frame">
@@ -465,15 +519,6 @@
 				<input type="number" id="delayMinutesInput" class="input-time" min="0" max="59" step="1" value="0">
 				<span class="time-unit-label">min</span>
 			</div>
-			<div class="form-group">
-				<label for="channelsInput" class="main-label">Channels</label>
-				<input type="number" id="channelsInput" class="input-channels">
-			</div>
-			<div class="form-group">
-				<label for="delayRandPercInput" class="main-label">Rand.</label>
-				<input type="number" id="delayRandPercInput" class="input-random" min="0" max="100" step="1" value="15">
-				<span class="time-unit-label">%</span>
-			</div>
 		</div>
 
 		<!-- Timer Containers -->
@@ -483,14 +528,6 @@
 		<div class="tools-row">
 			<button id="copyLinkButton" type="button">Copy Link</button>
 			<button id="copyTimersButton" type="button">Copy Timers</button>
-			<div class="form-group checkbox-group">
-				<input type="checkbox" id="formatLocalTimeCheckbox" class="styled-checkbox">
-				<label for="formatLocalTimeCheckbox" class="checkbox-label">Format Local Time</label>
-			</div>
-			<div class="form-group checkbox-group">
-				<input type="checkbox" id="syncModeCheckbox" class="styled-checkbox">
-				<label for="syncModeCheckbox" class="checkbox-label">Sync Mode</label>
-			</div>
 			<button id="clearTimersButton" type="button">Clear Timers</button>
 		</div>
 
@@ -596,16 +633,15 @@
 				constructor() {
 					this.channels = CHANNELS_DEFAULT;
 					this.delayRandPerc = DELAY_RAND_PERC_DEFAULT;
+					this.formatLocalTime = false;
+					this.syncMode = false;
+					this.roomId = null;
 					this.bossIndex = 0;
 					this.delayMinutes = 60;
 					this.bossStates = new Array(bossDefinitionsCount);
 
 					for (let i = 0; i < bossDefinitionsCount; i++)
 						this.bossStates[i] = new BossState();
-
-					this.formatLocalTime = false;
-					this.syncMode = false;
-					this.roomId = null;
 				}
 
 				fromJson(json) {
@@ -614,6 +650,15 @@
 
 					if ('delayRandPerc' in json)
 						this.delayRandPerc = json.delayRandPerc;
+
+					if ('formatLocalTime' in json)
+						this.formatLocalTime = json.formatLocalTime;
+
+					if ('syncMode' in json)
+						this.syncMode = json.syncMode;
+
+					if ('roomId' in json)
+						this.roomId = json.roomId;
 
 					if ('bossIndex' in json)
 						this.bossIndex = json.bossIndex;
@@ -625,15 +670,6 @@
 						for (let i = 0; i < bossDefinitionsCount && i < json.bossStates.length; i++)
 							this.bossStates[i].fromJson(json.bossStates[i]);
 					}
-
-					if ('formatLocalTime' in json)
-						this.formatLocalTime = json.formatLocalTime;
-
-					if ('syncMode' in json)
-						this.syncMode = json.syncMode;
-
-					if ('roomId' in json)
-						this.roomId = json.roomId;
 				}
 			}
 
@@ -1095,22 +1131,19 @@
 				document.title = formatDocumentTitle();
 			}
 
-			/* Input Events */
-			channelsInput.addEventListener('input', () => {
-				appState.channels = clamp(parseInt(channelsInput.value), CHANNELS_MIN, CHANNELS_MAX);
-				channelsInput.value = appState.channels;
-				ensureAllTimerContainers();
-				saveAppState();
-			});
+			/* Initialize Content */
+			ensureAllTimerContainers();
+			updateDocumentTitle();
 
-			delayRandPercInput.addEventListener('change', () => {
-				appState.delayRandPerc = clamp(parseInt(delayRandPercInput.value), 0, 100);
-				delayRandPercInput.value = appState.delayRandPerc;
+			/* Main Tick */
+			function onTick() {
 				updateAllTimers();
 				updateDocumentTitle();
-				saveAppState();
-			});
+			}
 
+			setInterval(onTick, 1000);
+
+			/* Config */
 			bossSelect.addEventListener('change', () => {
 				appState.bossIndex = parseInt(bossSelect.value);
 				updateDelayInputsDisabled();
@@ -1136,18 +1169,6 @@
 
 			delayHoursInput.addEventListener('change', onDelayInputChanged);
 			delayMinutesInput.addEventListener('change', onDelayInputChanged);
-
-			/* Initialize Content */
-			ensureAllTimerContainers();
-			updateDocumentTitle();
-
-			/* Main Tick */
-			function onTick() {
-				updateAllTimers();
-				updateDocumentTitle();
-			}
-
-			setInterval(onTick, 1000);
 
 			/* Tools */
 			function buildShareUrl() {
@@ -1213,27 +1234,6 @@
 
 			// TODO: To Clipboard?
 
-			formatLocalTimeCheckbox.addEventListener('change', () => {
-				appState.formatLocalTime = formatLocalTimeCheckbox.checked;
-				saveAppState();
-			});
-
-			syncModeCheckbox.addEventListener('change', () => {
-				appState.syncMode = syncModeCheckbox.checked;
-
-				if (appState.syncMode) {
-					ensureRoomId();
-
-					if (window.__firebase)
-						subscribeToBoss(appState.bossIndex);
-				} else if (unsubscribeFromBoss) {
-					unsubscribeFromBoss();
-					unsubscribeFromBoss = null;
-				}
-
-				saveAppState();
-			});
-
 			document.getElementById('clearTimersButton').addEventListener('click', () => {
 				for (let i = 0; i < CHANNELS_MAX; i++)
 					setPressTime(i, null);
@@ -1269,6 +1269,66 @@
 			themeToggleButton.addEventListener('click', toggleTheme);
 
 			applyThemeButtonLabel();
+
+			/* Options Menu */
+			const optionsToggleButton = document.getElementById('optionsToggleButton');
+			const optionsMenu = document.getElementById('optionsMenu');
+
+			function closeOptionsMenu() {
+				optionsMenu.hidden = true;
+				optionsToggleButton.setAttribute('aria-expanded', 'false');
+			}
+
+			optionsToggleButton.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const isOpen = !optionsMenu.hidden;
+				optionsMenu.hidden = isOpen;
+				optionsToggleButton.setAttribute('aria-expanded', String(!isOpen));
+			});
+
+			document.addEventListener('click', (e) => {
+				if (!optionsMenu.hidden && !optionsMenu.contains(e.target) && e.target !== optionsToggleButton) {
+					closeOptionsMenu();
+				}
+			});
+
+			optionsMenu.addEventListener('click', (e) => e.stopPropagation());
+
+			channelsInput.addEventListener('input', () => {
+				appState.channels = clamp(parseInt(channelsInput.value), CHANNELS_MIN, CHANNELS_MAX);
+				channelsInput.value = appState.channels;
+				ensureAllTimerContainers();
+				saveAppState();
+			});
+
+			delayRandPercInput.addEventListener('change', () => {
+				appState.delayRandPerc = clamp(parseInt(delayRandPercInput.value), 0, 100);
+				delayRandPercInput.value = appState.delayRandPerc;
+				updateAllTimers();
+				updateDocumentTitle();
+				saveAppState();
+			});
+
+			formatLocalTimeCheckbox.addEventListener('change', () => {
+				appState.formatLocalTime = formatLocalTimeCheckbox.checked;
+				saveAppState();
+			});
+
+			syncModeCheckbox.addEventListener('change', () => {
+				appState.syncMode = syncModeCheckbox.checked;
+
+				if (appState.syncMode) {
+					ensureRoomId();
+
+					if (window.__firebase)
+						subscribeToBoss(appState.bossIndex);
+				} else if (unsubscribeFromBoss) {
+					unsubscribeFromBoss();
+					unsubscribeFromBoss = null;
+				}
+
+				saveAppState();
+			});
 		</script>
 	</div>
 
