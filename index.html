@@ -859,6 +859,8 @@
 
 			loadUrlParams();
 
+			// TODO: Load the firestore press times asap?
+
 			/* Initialize Inputs */
 			bossSelect.value = appState.bossIndex;
 			channelsInput.min = CHANNELS_MIN;
@@ -1336,6 +1338,8 @@
 				appState.syncMode = syncModeCheckbox.checked;
 
 				if (appState.syncMode) {
+					remotePressTimes.fill(null);
+
 					if (window.__firebase) {
 						const newRoom = (appState.roomId === null);
 
