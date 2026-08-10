@@ -532,9 +532,9 @@
 		</div>
 
 		<script type="module">
-			import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import {getFirestore, doc, setDoc, onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-			import {getAuth, signInAnonymously} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+			import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
 				apiKey: "AIzaSyDPrVhDm9TOj9UUZi0qB66QQD6acGZCUtw",
@@ -551,7 +551,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = {db, doc, setDoc, onSnapshot};
+				window.__firebase = { db, doc, setDoc, onSnapshot };
 				window.onFirebaseReady?.();
 			} catch (err) {
 				console.error('Firebase init failed:', err);
@@ -674,6 +674,7 @@
 			}
 
 			const appState = new AppState();
+			const remotePressTimes = new Array(CHANNELS_MAX).fill(null);
 
 			function saveAppState() {
 				localStorage.setItem(APPSTATE_KEY, JSON.stringify(appState));
@@ -697,22 +698,26 @@
 				return null;
 			}
 
-			function writePressTimeToFirestore(bossIndex, channelIndex, pressTime) {
+			function writePressTimesToFirestore(bossIndex, pressTimesMap) {
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
 				const setDoc = window.__firebase.setDoc;
 
 				const docRef = doc(db, 'rooms', appState.roomId, 'bosses', String(bossIndex));
 
-				const data = {
-					pressTimesMap: {}
-				};
+				setDoc(docRef, { pressTimesMap }, { merge: true });
+			}
 
-				data.pressTimesMap[channelIndex] = pressTime;
+			function writePressTimeToFirestore(bossIndex, channelIndex, pressTime) {
+				const pressTimesMap = { [channelIndex]: pressTime };
 
-				const options = {merge: true};
+				writePressTimesToFirestore(bossIndex, pressTimesMap);
+			}
 
-				setDoc(docRef, data, options);
+			function writeAllPressTimesToFirestore(bossIndex, pressTimes) {
+				const pressTimesMap = Object.assign({}, pressTimes);
+
+				writePressTimesToFirestore(bossIndex, pressTimesMap);
 			}
 
 			let unsubscribeFromBoss = null;
@@ -733,12 +738,10 @@
 					if (!data || !data.pressTimesMap)
 						return;
 
-					const pressTimes = appState.bossStates[bossIndex].pressTimes;
+					for (let i = 0; i < CHANNELS_MAX && i < remotePressTimes.length; i++) {
+						const pressTimeEntry = data.pressTimesMap[i];
 
-					for (let i = 0; i < CHANNELS_MAX && i < pressTimes.length; i++) {
-						const pressTime = data.pressTimesMap[i];
-
-						pressTimes[i] = (pressTime == null ? null : pressTime.toDate());
+						remotePressTimes[i] = (pressTimeEntry == null ? null : pressTimeEntry.toDate()); // TODO: Need 'toDate'?
 					}
 
 					updateAllTimers();
@@ -748,27 +751,37 @@
 				});
 			}
 
-			function ensureRoomId() {
-				if (!appState.roomId)
-					appState.roomId = crypto.randomUUID();
-			}
-
 			function onFirebaseReady() {
-				if (appState.syncMode && appState.roomId)
+				if (appState.syncMode && appState.roomId !== null)
 					subscribeToBoss(appState.bossIndex);
 			}
 
+			function getRemotePressTime(index) {
+				if (index >= 0 && index < remotePressTimes.length)
+					return remotePressTimes[index];
+
+				return null;
+			}
+
+			// TODO: GetPressTimes function?
+
 			function getPressTime(index) {
-				return getBossState().pressTimes[index];
+				// TODO: Check bounds?
+				if (appState.syncMode)
+					return remotePressTimes[index];
+				else
+					return getBossState().pressTimes[index];
 			}
 
 			function setPressTime(index, pressTime) {
-				getBossState().pressTimes[index] = pressTime;
-
-				if (appState.syncMode)
+				// TODO: Check bounds?
+				if (appState.syncMode) {
+					remotePressTimes[index] = pressTime;
 					writePressTimeToFirestore(appState.bossIndex, index, pressTime);
-				else
+				} else {
+					getBossState().pressTimes[index] = pressTime;
 					saveAppState();
+				}
 			}
 
 			function updateDelayInputsDisabled() {
@@ -963,13 +976,13 @@
 					}
 
 					if (respawnAvgLabel)
-						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (respawnMinLabel)
-						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (respawnMaxLabel)
-						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (countdownLabel) {
 						if (timeRemaining <= -2 * delayRandMs) {
@@ -1100,7 +1113,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					list.push({channel: i + 1, timeRemaining: timeRemaining})
+					list.push({ channel: i + 1, timeRemaining: timeRemaining })
 				}
 
 				if (list.length == 0)
@@ -1149,8 +1162,11 @@
 				updateDelayInputsDisabled();
 				updateDelayInputsValue();
 
-				if (appState.syncMode)
+				if (appState.syncMode) {
+					remotePressTimes.fill(null);
+
 					subscribeToBoss(appState.bossIndex);
+				}
 
 				updateAllTimers();
 				updateDocumentTitle();
@@ -1182,11 +1198,11 @@
 					const copyLinkButton = document.getElementById('copyLinkButton');
 					const original = copyLinkButton.textContent;
 					copyLinkButton.textContent = 'Copied!';
-					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
+					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
 				}).catch(err => {
 					console.warn('Clipboard write failed:', err);
 					copyLinkButton.textContent = 'Failed!';
-					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
+					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
 				});
 			}
 
@@ -1217,16 +1233,18 @@
 			}
 
 			function timersToClipboard() {
-				const text = formatPressTimes(getBossState().pressTimes);
+				const pressTimes = (appState.syncMode ? remotePressTimes : getBossState().pressTimes);
+
+				const text = formatPressTimes(pressTimes);
 
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
-					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
+					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
 				}).catch(err => {
 					console.warn('Clipboard write failed:', err);
 					copyTimersButton.textContent = 'Failed!';
-					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
+					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
 				});
 			}
 
@@ -1318,10 +1336,21 @@
 				appState.syncMode = syncModeCheckbox.checked;
 
 				if (appState.syncMode) {
-					ensureRoomId();
+					if (window.__firebase) {
+						const newRoom = (appState.roomId === null);
 
-					if (window.__firebase)
+						if (newRoom)
+							appState.roomId = crypto.randomUUID();
+
 						subscribeToBoss(appState.bossIndex);
+
+						if (newRoom) {
+							for (let i = 0; i < bossDefinitionsCount && i < appState.bossStates.length; i++)
+								writeAllPressTimesToFirestore(i, appState.bossStates[i].pressTimes);
+						}
+					} else {
+						// TODO: Firebase isn't ready?
+					}
 				} else if (unsubscribeFromBoss) {
 					unsubscribeFromBoss();
 					unsubscribeFromBoss = null;
