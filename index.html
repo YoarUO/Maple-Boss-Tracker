@@ -489,7 +489,7 @@
 					<input type="number" id="channelsInput" class="input-channels">
 				</div>
 				<div class="form-group">
-					<label for="delayRandPercInput" class="main-label">Rand.</label>
+					<label for="delayRandPercInput" class="main-label">Randomization</label>
 					<input type="number" id="delayRandPercInput" class="input-random" min="0" max="100" step="1" value="15">
 					<span class="time-unit-label">%</span>
 				</div>
@@ -513,7 +513,7 @@
 				<select id="bossSelect"></select>
 			</div>
 			<div class="form-group">
-				<label class="main-label">Delay</label>
+				<label class="main-label">Respawn Delay</label>
 				<input type="number" id="delayHoursInput" class="input-time" min="0" step="1" value="1">
 				<span class="time-unit-label">hr</span>
 				<input type="number" id="delayMinutesInput" class="input-time" min="0" max="59" step="1" value="0">
@@ -532,9 +532,9 @@
 		</div>
 
 		<script type="module">
-			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+			import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+			import {getFirestore, doc, setDoc, onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import {getAuth, signInAnonymously} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
 				apiKey: "AIzaSyDPrVhDm9TOj9UUZi0qB66QQD6acGZCUtw",
@@ -551,7 +551,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = { db, doc, setDoc, onSnapshot };
+				window.__firebase = {db, doc, setDoc, onSnapshot};
 				window.onFirebaseReady?.();
 			} catch (err) {
 				console.error('Firebase init failed:', err);
@@ -710,7 +710,7 @@
 
 				data.pressTimesMap[channelIndex] = pressTime;
 
-				const options = { merge: true };
+				const options = {merge: true};
 
 				setDoc(docRef, data, options);
 			}
@@ -963,13 +963,13 @@
 					}
 
 					if (respawnAvgLabel)
-						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (respawnMinLabel)
-						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (respawnMaxLabel)
-						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (countdownLabel) {
 						if (timeRemaining <= -2 * delayRandMs) {
@@ -1100,7 +1100,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					list.push({ channel: i + 1, timeRemaining: timeRemaining })
+					list.push({channel: i + 1, timeRemaining: timeRemaining})
 				}
 
 				if (list.length == 0)
@@ -1182,11 +1182,11 @@
 					const copyLinkButton = document.getElementById('copyLinkButton');
 					const original = copyLinkButton.textContent;
 					copyLinkButton.textContent = 'Copied!';
-					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
+					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
 				}).catch(err => {
 					console.warn('Clipboard write failed:', err);
 					copyLinkButton.textContent = 'Failed!';
-					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
+					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
 				});
 			}
 
@@ -1222,11 +1222,11 @@
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
-					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
 				}).catch(err => {
 					console.warn('Clipboard write failed:', err);
 					copyTimersButton.textContent = 'Failed!';
-					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
 				});
 			}
 
