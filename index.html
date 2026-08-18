@@ -600,7 +600,7 @@
 
 		<script type="module">
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import { getFirestore, doc, setDoc, getDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
@@ -618,7 +618,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = { db, doc, setDoc, getDoc, onSnapshot };
+				window.__firebase = { db, doc, setDoc, getDoc, onSnapshot, runTransaction };
 				window.onFirebaseReady?.();
 			} catch (error) {
 				console.error('Firebase init failed:', error);
@@ -875,23 +875,24 @@
 			function writeBossEntryToFirestore(roomId, bossIndex, channelIndex, bossEntry) {
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
-				const getDoc = window.__firebase.getDoc;
-				const setDoc = window.__firebase.setDoc;
+				const runTransaction = window.__firebase.runTransaction;
 
 				try {
 					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
 
-					return getDoc(docRef).then((docSnap) => {
-						const data = (docSnap.exists() ? docSnap.data() : { bossEntries: [] });
+					return runTransaction(db, (transaction) => {
+						return transaction.get(docRef).then((docSnap) => {
+							const data = (docSnap.exists() ? docSnap.data() : { bossEntries: [] });
 
-						const bossEntries = (data.bossEntries ? data.bossEntries.slice() : []);
+							const bossEntries = (data.bossEntries ? data.bossEntries.slice() : []);
 
-						while (bossEntries.length < CHANNELS_MAX)
-							bossEntries.push(new BossEntry().toFirestore());
+							while (bossEntries.length < CHANNELS_MAX)
+								bossEntries.push(new BossEntry().toFirestore());
 
-						bossEntries[channelIndex] = bossEntry.toFirestore();
+							bossEntries[channelIndex] = bossEntry.toFirestore();
 
-						return setDoc(docRef, { bossEntries }, { merge: true });
+							transaction.set(docRef, { bossEntries }, { merge: true });
+						});
 					}).catch((error) => {
 						console.error('Firestore write failed:', error);
 					});
