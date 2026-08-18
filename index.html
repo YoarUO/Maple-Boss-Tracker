@@ -6,11 +6,62 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Maple Boss Tracker Dashboard</title>
 	<script>
-		(function () {
-			const saved = localStorage.getItem('mapleBossTracker.theme'); // TODO: Move to AppState?
-			if (saved === 'light')
-				document.documentElement.setAttribute('data-theme', 'light');
-		})();
+		const THEME_KEY = 'mapleBossTracker.theme';
+
+		class themeDefinition {
+			constructor(icon, name) {
+				this.icon = icon;
+				this.name = name;
+			}
+		}
+
+		const themeDefinitions = [
+			new themeDefinition('☀', 'light'),
+			new themeDefinition('☾', 'dark')
+		];
+
+		function findThemeIndex(themeName) {
+			let themeIndex = -1;
+
+			for (let i = 0; themeIndex == -1 && i < themeDefinitions.length; i++) {
+				if (themeDefinitions[i].name == themeName)
+					themeIndex = i;
+			}
+
+			return themeIndex;
+		}
+
+		function getNextThemeIcon(themeIndex) {
+			if (themeDefinitions.length == 0)
+				return '☾'; // Fallback icon
+
+			let nextThemeIndex = themeIndex + 1;
+
+			if (nextThemeIndex >= themeDefinitions.length)
+				nextThemeIndex = 0;
+
+			return themeDefinitions[nextThemeIndex].icon;
+		}
+
+		function setTheme(themeDefinition) {
+			document.documentElement.setAttribute('data-theme', themeDefinition.name);
+
+			const themeToggleButton = document.getElementById('themeToggleButton');
+
+			if (themeToggleButton)
+				themeToggleButton.textContent = getNextThemeIcon(themeDefinitions.indexOf(themeDefinition));
+		}
+
+		if (themeDefinitions.length != 0) {
+			const themeName = localStorage.getItem(THEME_KEY); // TODO: Move to AppState?
+
+			let themeIndex = findThemeIndex(themeName);
+
+			if (themeIndex == -1)
+				themeIndex = 0;
+
+			setTheme(themeDefinitions[themeIndex]);
+		}
 	</script>
 	<style>
 		@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
@@ -368,8 +419,12 @@
 			letter-spacing: 0.01em;
 		}
 
+		.qmark-btn {
+			margin-left: auto;
+		}
+
+		.qmark-btn,
 		.clear-btn {
-			align-self: flex-start;
 			background: transparent;
 			border-color: var(--hairline-soft);
 			color: var(--text-muted);
@@ -381,6 +436,13 @@
 			background-color: var(--clear-hover-bg);
 			border-color: var(--clear-hover-border);
 			color: var(--clear-hover-text);
+		}
+
+		.qmark-btn.active,
+		.qmark-btn.active:hover {
+			background-color: var(--maple-gold);
+			border-color: var(--maple-gold);
+			color: var(--bg-void);
 		}
 
 		@media (max-width: 560px) {
@@ -506,7 +568,7 @@
 
 		<script type="module">
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
@@ -524,10 +586,10 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = { db, doc, setDoc, onSnapshot };
+				window.__firebase = { db, doc, setDoc, getDoc, onSnapshot };
 				window.onFirebaseReady?.();
-			} catch (err) {
-				console.error('Firebase init failed:', err);
+			} catch (error) {
+				console.error('Firebase init failed:', error);
 			}
 		</script>
 
@@ -551,18 +613,23 @@
 
 			/* Boss Definitions */
 			class BossDefinition {
-				constructor(name, delayMinutes) {
+				constructor(name, order, delayMinutes) {
 					this.name = name;
+					this.order = order;
 					this.delayMinutes = delayMinutes;
 				}
 			}
 
 			const bossDefinitions = [
-				new BossDefinition('Unspecified', 60), // Default definition
-				new BossDefinition('Deo', 60),
-				new BossDefinition('Seruf', 60),
-				new BossDefinition('Manon', 90),
-				new BossDefinition('Leviathan', 240)
+				new BossDefinition('Unspecified', 0, 60),
+
+				new BossDefinition('Deo', 1, 60),
+				new BossDefinition('Seruf', 2, 60),
+				new BossDefinition('Manon', 3, 90),
+				new BossDefinition('Leviathan', 7, 240),
+
+				new BossDefinition('Timer', 4, 120),
+				new BossDefinition('Kimera', 5, 180)
 			];
 
 			const bossDefinitionsCount = bossDefinitions.length;
@@ -583,22 +650,113 @@
 				return null;
 			}
 
-			bossDefinitions.forEach((bossDefinition, index) => {
+			// TODO: Move this inside a function and call it?
+			const bossDefinitionsSorted = bossDefinitions.slice();
+
+			bossDefinitionsSorted.sort((a, b) => a.order - b.order);
+
+			bossDefinitionsSorted.forEach((bossDefinition, index) => {
 				const option = document.createElement('option');
-				option.value = index;
+				option.value = bossDefinitions.indexOf(bossDefinition);
 				option.textContent = bossDefinition.name;
 				bossSelect.appendChild(option);
 			});
 
 			/* AppState */
-			class BossState {
+			class BossEntry {
 				constructor() {
-					this.pressTimes = new Array(CHANNELS_MAX).fill(null);
+					this.pressTime = null;
+					this.qmark = false;
 				}
 
-				fromJson(json) {
-					if ('pressTimes' in json)
-						this.pressTimes = json.pressTimes.map(s => s === null ? null : new Date(s));
+				toJSON() {
+					return {
+						pressTime: this.pressTime === null ? null : this.pressTime.toISOString(),
+						qmark: Boolean(this.qmark),
+					};
+				}
+
+				fromJSON(json) {
+					if ('pressTime' in json)
+						this.pressTime = (json.pressTime === null ? null : new Date(json.pressTime));
+
+					if ('qmark' in json)
+						this.qmark = (json.qmark === null ? false : Boolean(json.qmark));
+				}
+
+				toFirestore() {
+					return {
+						pressTime: this.pressTime,
+						qmark: Boolean(this.qmark),
+					};
+				}
+
+				fromFirestore(data) {
+					if ('pressTime' in data)
+						this.pressTime = ((data.pressTime === null || data.pressTime === undefined) ? null : (data.pressTime.toDate ? data.pressTime.toDate() : new Date(data.pressTime)));
+
+					if ('qmark' in data)
+						this.qmark = data.qmark === null ? false : Boolean(data.qmark);
+				}
+
+				copy(bossEntry) {
+					this.pressTime = bossEntry.pressTime;
+					this.qmark = bossEntry.qmark;
+				}
+
+				clear() {
+					this.pressTime = null;
+					this.qmark = false;
+				}
+			}
+
+			class BossState {
+				constructor() {
+					this.bossEntries = new Array(CHANNELS_MAX);
+
+					for (let i = 0; i < this.bossEntries.length; i++)
+						this.bossEntries[i] = new BossEntry();
+				}
+
+				toJSON() {
+					return {
+						bossEntries: this.bossEntries.map(entry => entry.toJSON()),
+					};
+				}
+
+				fromJSON(json) {
+					if ('bossEntries' in json) {
+						for (let i = 0; i < this.bossEntries.length && i < json.bossEntries.length; i++)
+							this.bossEntries[i].fromJSON(json.bossEntries[i]);
+					}
+
+					// Legacy
+					if ('pressTimes' in json) {
+						for (let i = 0; i < this.bossEntries.length && i < json.pressTimes.length; i++)
+							this.bossEntries[i].pressTime = (json.pressTimes[i] === null ? null : new Date(json.pressTimes[i]));
+					}
+				}
+
+				toFirestore() {
+					return {
+						bossEntries: this.bossEntries.map(entry => entry.toFirestore()),
+					};
+				}
+
+				fromFirestore(data) {
+					if ('bossEntries' in data) {
+						for (let i = 0; i < this.bossEntries.length && i < data.bossEntries.length; i++)
+							this.bossEntries[i].fromFirestore(data.bossEntries[i]);
+					}
+				}
+
+				copy(bossState) {
+					for (let i = 0; i < this.bossEntries.length && i < bossState.bossEntries.length; i++)
+						this.bossEntries[i].copy(bossState.bossEntries[i]);
+				}
+
+				clear() {
+					this.bossEntries.forEach(bossEntry => bossEntry.clear());
 				}
 			}
 
@@ -613,11 +771,24 @@
 					this.delayMinutes = 60;
 					this.bossStates = new Array(bossDefinitionsCount);
 
-					for (let i = 0; i < bossDefinitionsCount; i++)
+					for (let i = 0; i < this.bossStates.length; i++)
 						this.bossStates[i] = new BossState();
 				}
 
-				fromJson(json) {
+				toJSON() {
+					return {
+						channels: this.channels,
+						delayRandPerc: this.delayRandPerc,
+						formatLocalTime: this.formatLocalTime,
+						syncMode: this.syncMode,
+						roomId: this.roomId,
+						bossIndex: this.bossIndex,
+						delayMinutes: this.delayMinutes,
+						bossStates: this.bossStates.map(state => state.toJSON()),
+					};
+				}
+
+				fromJSON(json) {
 					if ('channels' in json)
 						this.channels = json.channels;
 
@@ -627,6 +798,7 @@
 					if ('formatLocalTime' in json)
 						this.formatLocalTime = json.formatLocalTime;
 
+					// TODO: Do not save/load sync mode, and instead rely on links?
 					if ('syncMode' in json) {
 						this.syncMode = json.syncMode;
 
@@ -642,15 +814,16 @@
 						this.delayMinutes = json.delayMinutes;
 
 					if ('bossStates' in json) {
-						for (let i = 0; i < bossDefinitionsCount && i < json.bossStates.length; i++)
-							this.bossStates[i].fromJson(json.bossStates[i]);
+						for (let i = 0; i < this.bossStates.length && i < json.bossStates.length; i++)
+							this.bossStates[i].fromJSON(json.bossStates[i]);
 					}
 				}
 			}
 
 			const appState = new AppState();
-			const remotePressTimes = new Array(CHANNELS_MAX).fill(null);
+			const remoteBossState = new BossState();
 
+			/* Local Storage */
 			function saveAppState() {
 				localStorage.setItem(APPSTATE_KEY, JSON.stringify(appState));
 			}
@@ -661,134 +834,94 @@
 				if (json === null)
 					return;
 
-				appState.fromJson(JSON.parse(json));
+				appState.fromJSON(JSON.parse(json));
 			}
 
-			loadAppState();
+			/* Firestore */
+			let unsubscribeFromFirestore = null;
 
-			function getBossState() {
-				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length)
-					return appState.bossStates[appState.bossIndex];
+			function writeBossEntryToFirestore(roomId, bossIndex, channelIndex, bossEntry) {
+				const db = window.__firebase.db;
+				const doc = window.__firebase.doc;
+				const getDoc = window.__firebase.getDoc;
+				const setDoc = window.__firebase.setDoc;
 
-				return null;
+				try {
+					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
+
+					return getDoc(docRef).then((docSnap) => {
+						const data = (docSnap.exists() ? docSnap.data() : { bossEntries: [] });
+
+						const bossEntries = (data.bossEntries ? data.bossEntries.slice() : []);
+
+						while (bossEntries.length < CHANNELS_MAX)
+							bossEntries.push(new BossEntry().toFirestore());
+
+						bossEntries[channelIndex] = bossEntry.toFirestore();
+
+						return setDoc(docRef, { bossEntries }, { merge: true });
+					}).catch((error) => {
+						console.error('Firestore write failed:', error);
+					});
+				} catch (error) {
+					console.error('Firestore write failed:', error);
+				}
 			}
 
-			function writePressTimesToFirestore(bossIndex, pressTimesMap) {
+			function writeBossStateToFirestore(roomId, bossIndex, bossState) {
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
 				const setDoc = window.__firebase.setDoc;
 
-				const docRef = doc(db, 'rooms', appState.roomId, 'bosses', String(bossIndex));
+				try {
+					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
 
-				setDoc(docRef, { pressTimesMap }, { merge: true });
+					setDoc(docRef, bossState.toFirestore());
+				} catch (error) {
+					console.error('Firestore write failed:', error);
+				}
 			}
 
-			function writePressTimeToFirestore(bossIndex, channelIndex, pressTime) {
-				const pressTimesMap = { [channelIndex]: pressTime };
-
-				writePressTimesToFirestore(bossIndex, pressTimesMap);
-			}
-
-			function writeAllPressTimesToFirestore(bossIndex, pressTimes) {
-				const pressTimesMap = Object.assign({}, pressTimes);
-
-				writePressTimesToFirestore(bossIndex, pressTimesMap);
-			}
-
-			let unsubscribeFromBoss = null;
-
-			function subscribeToBoss(bossIndex) {
-				if (unsubscribeFromBoss)
-					unsubscribeFromBoss();
+			function subscribeToFirestore(roomId, bossIndex, bossState) {
+				if (unsubscribeFromFirestore)
+					unsubscribeFromFirestore();
 
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
 				const onSnapshot = window.__firebase.onSnapshot;
 
-				const docRef = doc(db, 'rooms', appState.roomId, 'bosses', String(bossIndex));
+				const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
 
-				unsubscribeFromBoss = onSnapshot(docRef, (snap) => {
-					const data = snap.data();
-
-					if (!data || !data.pressTimesMap)
+				unsubscribeFromFirestore = onSnapshot(docRef, (docSnap) => {
+					if (!docSnap.exists())
 						return;
 
-					for (let i = 0; i < CHANNELS_MAX && i < remotePressTimes.length; i++) {
-						const pressTimeEntry = data.pressTimesMap[i];
+					const data = docSnap.data();
 
-						remotePressTimes[i] = (pressTimeEntry == null ? null : pressTimeEntry.toDate()); // TODO: Need 'toDate'?
+					// Legacy
+					if ('pressTimesMap' in data) {
+						for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length; i++) {
+							const pressTimeEntry = data.pressTimesMap[i];
+
+							bossState.bossEntries[i].pressTime = (pressTimeEntry == null ? null : pressTimeEntry.toDate());
+						}
+					} else {
+						bossState.fromFirestore(data);
 					}
 
 					updateAllTimers();
 					updateDocumentTitle();
-				}, (err) => {
-					console.error('Room subscription failed:', err);
+				}, (error) => {
+					console.error('Firestore subscription failed:', error);
 				});
 			}
 
 			function onFirebaseReady() {
 				if (appState.syncMode && appState.roomId !== null)
-					subscribeToBoss(appState.bossIndex);
-			}
-
-			// TODO: GetPressTimes function?
-
-			function getPressTime(index) {
-				// TODO: Check bounds?
-				if (appState.syncMode)
-					return remotePressTimes[index];
-				else
-					return getBossState().pressTimes[index];
-			}
-
-			function setPressTime(index, pressTime) {
-				// TODO: Check bounds?
-				if (appState.syncMode) {
-					remotePressTimes[index] = pressTime;
-					writePressTimeToFirestore(appState.bossIndex, index, pressTime);
-				} else {
-					getBossState().pressTimes[index] = pressTime;
-					saveAppState();
-				}
-			}
-
-			function updateDelayInputsDisabled() {
-				const disabled = (appState.bossIndex != 0);
-				delayHoursInput.disabled = disabled;
-				delayMinutesInput.disabled = disabled;
-			}
-
-			function updateDelayInputsValue() {
-				const delayMinutes = getBossDefinition().delayMinutes;
-				delayHoursInput.value = Math.floor(delayMinutes / 60);
-				delayMinutesInput.value = delayMinutes % 60;
+					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 			}
 
 			/* URL Params */
-			function savePressTimesParam() {
-				const array = Array(CHANNELS_MAX);
-
-				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length) {
-					const bossState = appState.bossStates[appState.bossIndex];
-
-					for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++)
-						array[i] = (bossState.pressTimes[i] === null ? '' : String(bossState.pressTimes[i].getTime()));
-				}
-
-				return array.join(',');
-			}
-
-			function loadPressTimesParam(param) {
-				const split = param.split(',');
-
-				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length) {
-					const bossState = appState.bossStates[appState.bossIndex];
-
-					for (let i = 0; i < CHANNELS_MAX && i < bossState.pressTimes.length; i++)
-						bossState.pressTimes[i] = (split[i] == '' ? null : new Date(Number(split[i])));
-				}
-			}
-
 			function saveUrlParams() {
 				const params = new URLSearchParams(window.location.search);
 
@@ -799,7 +932,17 @@
 					params.set('room', appState.roomId);
 				} else {
 					params.delete('room');
-					params.set('pt', savePressTimesParam());
+
+					const ptArray = Array(CHANNELS_MAX);
+
+					if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length) {
+						const bossState = appState.bossStates[appState.bossIndex];
+
+						for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length; i++)
+							ptArray[i] = (bossState.bossEntries[i].pressTime === null ? '' : String(bossState.bossEntries[i].pressTime.getTime()));
+					}
+
+					params.set('pt', ptArray.join(','));
 				}
 
 				return params.toString();
@@ -811,23 +954,98 @@
 				const ptParam = params.get('pt');
 				const roomParam = params.get('room');
 
-				if (bossParam)
-					appState.bossIndex = parseInt(params.get('boss'));
+				if (bossParam) {
+					const parsed = parseInt(params.get('boss'));
+					appState.bossIndex = (isNaN(parsed) ? 0 : clamp(parsed, 0, bossDefinitionsCount - 1));
+				}
 
 				if (roomParam) {
 					appState.syncMode = true;
 					appState.roomId = roomParam;
 				} else if (ptParam) {
-					loadPressTimesParam(params.get('pt'));
+					const ptArray = params.get('pt').split(',');
+
+					if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length) {
+						const bossState = appState.bossStates[appState.bossIndex];
+
+						for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length && i < ptArray.length; i++)
+							bossState.bossEntries[i].pressTime = (ptArray[i] == '' ? null : new Date(Number(ptArray[i])));
+					}
 				}
 
 				if (bossParam || ptParam || roomParam)
 					history.replaceState(null, '', window.location.pathname);
 			}
 
+			/* State Getters, Setters */
+			function getBossState() {
+				if (appState.syncMode)
+					return remoteBossState;
+
+				if (appState.bossIndex >= 0 && appState.bossIndex < appState.bossStates.length)
+					return appState.bossStates[appState.bossIndex];
+
+				return null;
+			}
+
+			function getBossEntry(channelIndex) {
+				const bossState = getBossState();
+
+				if (bossState === null)
+					return null;
+
+				if (channelIndex >= 0 && channelIndex < bossState.bossEntries.length)
+					return bossState.bossEntries[channelIndex];
+
+				return null;
+			}
+
+			function setPressTime(channelIndex, pressTime) {
+				const bossEntry = getBossEntry(channelIndex);
+
+				if (bossEntry === null)
+					return;
+
+				bossEntry.pressTime = pressTime;
+
+				if (appState.syncMode)
+					writeBossEntryToFirestore(appState.roomId, appState.bossIndex, channelIndex, bossEntry);
+				else
+					saveAppState();
+			}
+
+			function setQmark(channelIndex, qmark) {
+				const bossEntry = getBossEntry(channelIndex);
+
+				if (bossEntry === null)
+					return;
+
+				bossEntry.qmark = qmark;
+
+				if (appState.syncMode)
+					writeBossEntryToFirestore(appState.roomId, appState.bossIndex, channelIndex, bossEntry);
+				else
+					saveAppState();
+			}
+
+			/* Load State */
+			loadAppState();
 			loadUrlParams();
 
-			// TODO: Load the firestore press times asap?
+			// TODO: Load firestore?
+
+			// TODO: Move elsehwere...
+			function updateDelayInputsDisabled() {
+				const disabled = (appState.bossIndex != 0);
+				delayHoursInput.disabled = disabled;
+				delayMinutesInput.disabled = disabled;
+			}
+
+			function updateDelayInputsValue() {
+				const delayMinutes = getBossDefinition().delayMinutes;
+				delayHoursInput.value = Math.floor(delayMinutes / 60);
+				delayMinutesInput.value = delayMinutes % 60;
+			}
 
 			/* Initialize Inputs */
 			bossSelect.value = appState.bossIndex;
@@ -896,16 +1114,28 @@
 			const SOON_THRESHOLD_MS = 300000;
 			const DOCUMENT_TITLE = document.title;
 
-			function updateTimer(timerContainer, index) {
-				const pressTime = getPressTime(index);
+			function updateTimer(timerContainer, channelIndex) {
+				const bossEntry = getBossEntry(channelIndex);
+				const pressTime = (bossEntry === null ? null : bossEntry.pressTime);
 
+				const qmarkButton = timerContainer.querySelector('#qmarkButton');
 				const recordInput = timerContainer.querySelector('#recordInput');
 				const respawnAvgLabel = timerContainer.querySelector('#respawnAvgLabel');
 				const respawnMinLabel = timerContainer.querySelector('#respawnMinLabel');
 				const respawnMaxLabel = timerContainer.querySelector('#respawnMaxLabel');
 				const countdownLabel = timerContainer.querySelector('#countdownLabel');
 
-				const recordInputFocused = recordInput && document.activeElement === recordInput;
+				if (bossEntry !== null && qmarkButton) {
+					if (bossEntry.qmark) {
+						qmarkButton.classList.add('active')
+						qmarkButton.setAttribute('aria-pressed', 'true');
+					} else {
+						qmarkButton.classList.remove('active')
+						qmarkButton.setAttribute('aria-pressed', 'false');
+					}
+				}
+
+				const recordInputFocused = (recordInput && document.activeElement === recordInput);
 
 				if (pressTime === null || isNaN(pressTime)) {
 					if (recordInput && !recordInputFocused)
@@ -972,12 +1202,24 @@
 				}
 			}
 
-			function createTimerContainer(index) {
+			function createTimerContainer(channelIndex) {
 				const timerContainer = document.createElement('div');
 				timerContainer.className = 'timer-container';
 
+				const rowTop = document.createElement('div');
+				rowTop.className = 'row-top';
+
 				const recordButton = document.createElement('button');
-				recordButton.textContent = `Channel ${index + 1}`;
+				recordButton.textContent = `Channel ${channelIndex + 1}`;
+
+				const qmarkButton = document.createElement('button');
+				qmarkButton.id = 'qmarkButton';
+				qmarkButton.textContent = '?';
+				qmarkButton.className = 'qmark-btn';
+
+				const clearButton = document.createElement('button');
+				clearButton.textContent = 'Clear';
+				clearButton.className = 'clear-btn';
 
 				const recordInput = document.createElement('input');
 				recordInput.id = 'recordInput';
@@ -986,6 +1228,10 @@
 				recordInput.min = "00:00"
 				recordInput.max = "23:59"
 				recordInput.step = "60"
+
+				const countdownLabel = document.createElement('span');
+				countdownLabel.id = 'countdownLabel';
+				countdownLabel.className = 'countdown-label';
 
 				const respawnAvgLabel = document.createElement('span');
 				respawnAvgLabel.id = 'respawnAvgLabel';
@@ -999,36 +1245,34 @@
 				respawnMaxLabel.id = 'respawnMaxLabel';
 				respawnMaxLabel.className = 'range-label';
 
-				const countdownLabel = document.createElement('span');
-				countdownLabel.id = 'countdownLabel';
-				countdownLabel.className = 'countdown-label';
-
-				const clearButton = document.createElement('button');
-				clearButton.textContent = 'Clear';
-				clearButton.className = 'clear-btn';
-
-				const rowTop = document.createElement('div');
-				rowTop.className = 'row-top';
-
 				recordButton.addEventListener('click', () => {
-					setPressTime(index, new Date());
-					updateTimer(timerContainer, index);
+					setPressTime(channelIndex, new Date());
+					setQmark(channelIndex, false);
+					updateTimer(timerContainer, channelIndex);
+					updateDocumentTitle();
+				});
+
+				qmarkButton.addEventListener('click', () => {
+					const isActive = qmarkButton.classList.toggle('active');
+					qmarkButton.setAttribute('aria-pressed', String(isActive));
+					setQmark(channelIndex, isActive);
+				});
+
+				clearButton.addEventListener('click', () => {
+					setPressTime(channelIndex, null);
+					setQmark(channelIndex, false);
+					updateTimer(timerContainer, channelIndex);
 					updateDocumentTitle();
 				});
 
 				recordInput.addEventListener('change', (event) => {
-					setPressTime(index, timeStringToDate(event.target.value));
-					updateTimer(timerContainer, index);
-					updateDocumentTitle();
-				});
-
-				clearButton.addEventListener('click', () => {
-					setPressTime(index, null);
-					updateTimer(timerContainer, index);
+					setPressTime(channelIndex, timeStringToDate(event.target.value));
+					updateTimer(timerContainer, channelIndex);
 					updateDocumentTitle();
 				});
 
 				rowTop.appendChild(recordButton);
+				rowTop.appendChild(qmarkButton);
 				rowTop.appendChild(clearButton);
 
 				timerContainer.appendChild(rowTop);
@@ -1073,7 +1317,8 @@
 				const list = [];
 
 				for (let i = 0; i < CHANNELS_MAX; i++) {
-					const pressTime = getPressTime(i);
+					const bossEntry = getBossEntry(i);
+					const pressTime = (bossEntry === null ? null : bossEntry.pressTime);
 
 					if (pressTime === null)
 						continue;
@@ -1095,7 +1340,7 @@
 
 				const timers = list
 					.slice(0, toDisplay)
-					.map(item => `ch${item.channel}: ${formatTimeIcon(item.timeRemaining, delayRandMs)}`)
+					.map((item) => `ch${item.channel}: ${formatTimeIcon(item.timeRemaining, delayRandMs)}`)
 					.join(', ');
 
 				return `⌚${timers}`;
@@ -1133,9 +1378,8 @@
 				updateDelayInputsValue();
 
 				if (appState.syncMode) {
-					remotePressTimes.fill(null);
-
-					subscribeToBoss(appState.bossIndex);
+					remoteBossState.clear();
+					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 				}
 
 				updateAllTimers();
@@ -1169,8 +1413,8 @@
 					const original = copyLinkButton.textContent;
 					copyLinkButton.textContent = 'Copied!';
 					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
-				}).catch(err => {
-					console.warn('Clipboard write failed:', err);
+				}).catch((error) => {
+					console.warn('Clipboard write failed:', error);
 					copyLinkButton.textContent = 'Failed!';
 					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
 				});
@@ -1178,17 +1422,19 @@
 
 			document.getElementById('copyLinkButton').addEventListener('click', copyShareUrl);
 
-			function formatPressTimes(pressTimes) {
-				const bossDefition = getBossDefinition();
-				const delayMinutes = bossDefition.delayMinutes;
-				const formatLocalTime = appState.formatLocalTime;
+			function timersToClipboard() {
+				const bossState = getBossState();
 
-				const delayMs = delayMinutes * 60 * 1000;
+				if (bossState === null)
+					return;
+
+				const formatLocalTime = appState.formatLocalTime;
 
 				const lines = [];
 
-				for (let i = 0; i < CHANNELS_MAX; i++) {
-					const pressTime = pressTimes[i];
+				for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length; i++) {
+					const bossEntry = bossState.bossEntries[i];
+					const pressTime = bossEntry.pressTime;
 
 					if (pressTime === null)
 						continue;
@@ -1199,20 +1445,14 @@
 					lines.push(`ch${i + 1}: ${hh}:${mm}`);
 				}
 
-				return lines.join('\n');
-			}
-
-			function timersToClipboard() {
-				const pressTimes = (appState.syncMode ? remotePressTimes : getBossState().pressTimes);
-
-				const text = formatPressTimes(pressTimes);
+				const text = lines.join('\n');
 
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
 					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
-				}).catch(err => {
-					console.warn('Clipboard write failed:', err);
+				}).catch((error) => {
+					console.warn('Clipboard write failed:', error);
 					copyTimersButton.textContent = 'Failed!';
 					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
 				});
@@ -1220,43 +1460,52 @@
 
 			document.getElementById('copyTimersButton').addEventListener('click', timersToClipboard);
 
-			// TODO: To Clipboard?
-
 			document.getElementById('clearTimersButton').addEventListener('click', () => {
-				for (let i = 0; i < CHANNELS_MAX; i++)
-					setPressTime(i, null);
+				const bossState = getBossState();
+
+				if (bossState === null)
+					return;
+
+				bossState.clear();
+
+				if (appState.syncMode)
+					writeBossStateToFirestore(appState.roomId, appState.bossIndex, bossState);
+				else
+					saveAppState();
 
 				updateAllTimers();
 				updateDocumentTitle();
 			});
 
 			/* Theme Toggle */
-			const THEME_KEY = 'mapleBossTracker.theme';
 			const themeToggleButton = document.getElementById('themeToggleButton');
 
-			function applyThemeButtonLabel() {
-				const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-
-				themeToggleButton.textContent = isLight ? '☾' : '☀';
-			}
-
 			function toggleTheme() {
-				const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+				if (themeDefinitions.length == 0)
+					return;
 
-				if (isLight) {
-					document.documentElement.removeAttribute('data-theme');
-					localStorage.setItem(THEME_KEY, 'dark');
-				} else {
-					document.documentElement.setAttribute('data-theme', 'light');
-					localStorage.setItem(THEME_KEY, 'light');
-				}
+				const themeName = document.documentElement.getAttribute('data-theme');
 
-				applyThemeButtonLabel();
+				let nextThemeIndex = findThemeIndex(themeName) + 1;
+
+				if (nextThemeIndex >= themeDefinitions.length)
+					nextThemeIndex = 0;
+
+				const themeDefinition = themeDefinitions[nextThemeIndex];
+
+				setTheme(themeDefinition);
+
+				localStorage.setItem(THEME_KEY, themeDefinition.name);
 			}
 
 			themeToggleButton.addEventListener('click', toggleTheme);
 
-			applyThemeButtonLabel();
+			// Fix theme toggle button icon
+			if (themeDefinitions.length != 0) {
+				const themeName = document.documentElement.getAttribute('data-theme');
+
+				themeToggleButton.textContent = getNextThemeIcon(findThemeIndex(themeName));
+			}
 
 			/* Options Menu */
 			const optionsToggleButton = document.getElementById('optionsToggleButton');
@@ -1303,29 +1552,33 @@
 			});
 
 			syncModeCheckbox.addEventListener('change', () => {
+				if (!window.__firebase) {
+					syncModeCheckbox.checked = appState.syncMode;
+					return;
+				}
+
 				appState.syncMode = syncModeCheckbox.checked;
 
 				if (appState.syncMode) {
-					remotePressTimes.fill(null);
+					remoteBossState.clear();
 
-					if (window.__firebase) {
-						const newRoom = (appState.roomId === null);
+					if (appState.roomId === null) {
+						appState.roomId = crypto.randomUUID();
 
-						if (newRoom)
-							appState.roomId = crypto.randomUUID();
+						for (let i = 0; i < bossDefinitionsCount && i < appState.bossStates.length; i++) {
+							if (i == appState.bossIndex)
+								remoteBossState.copy(appState.bossStates[i]);
 
-						subscribeToBoss(appState.bossIndex);
-
-						if (newRoom) {
-							for (let i = 0; i < bossDefinitionsCount && i < appState.bossStates.length; i++)
-								writeAllPressTimesToFirestore(i, appState.bossStates[i].pressTimes);
+							writeBossStateToFirestore(appState.roomId, i, appState.bossStates[i]);
 						}
-					} else {
-						// TODO: Firebase isn't ready?
 					}
-				} else if (unsubscribeFromBoss) {
-					unsubscribeFromBoss();
-					unsubscribeFromBoss = null;
+
+					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
+				} else {
+					if (unsubscribeFromFirestore) {
+						unsubscribeFromFirestore();
+						unsubscribeFromFirestore = null;
+					}
 				}
 
 				saveAppState();
