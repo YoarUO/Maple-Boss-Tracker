@@ -17,7 +17,8 @@
 
 		const themeDefinitions = [
 			new themeDefinition('☀', 'light'),
-			new themeDefinition('☾', 'dark')
+			new themeDefinition('☾', 'dark'),
+			new themeDefinition('🍂', 'autumn')
 		];
 
 		function findThemeIndex(themeName) {
@@ -116,6 +117,37 @@
 			--clear-hover-bg: #fbe9ea;
 			--clear-hover-border: #d9757e;
 			--clear-hover-text: #b0303f;
+		}
+
+		[data-theme="autumn"] {
+			--bg-void: #1a120b;
+			--bg-panel: #241811;
+			--bg-card: #2b1d14;
+			--bg-input: #1f150e;
+			--hairline: #4a3222;
+			--hairline-soft: #3a2818;
+			--text-primary: #f5e6d3;
+			--text-secondary: #cba883;
+			--text-muted: #8a6c52;
+			--maple-gold: #e08a3c;
+			--maple-gold-dim: #a8672a;
+			--warning-orange: #ff8c42;
+			--warning-glow: rgba(255, 140, 66, 0.18);
+			--success-green: #8bbf5a;
+			--success-glow: rgba(139, 191, 90, 0.18);
+			--danger-red: #c1440e;
+			--danger-glow: rgba(193, 68, 14, 0.18);
+			--bg-button: #2f2016;
+			--bg-button-hover: #3d2a1a;
+			--clear-hover-bg: #3a1810;
+			--clear-hover-border: #b6413a;
+			--clear-hover-text: #f28b82;
+		}
+
+		[data-theme="autumn"] body {
+			background-image:
+				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(224, 138, 60, 0.08), transparent),
+				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(193, 68, 14, 0.06), transparent);
 		}
 
 		* {
