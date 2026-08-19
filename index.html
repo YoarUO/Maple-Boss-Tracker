@@ -470,12 +470,7 @@
 			color: var(--clear-hover-text);
 		}
 
-		.qmark-btn.active {
-			background-color: var(--maple-gold);
-			border-color: var(--maple-gold);
-			color: var(--bg-void);
-		}
-
+		.qmark-btn.active,
 		.qmark-btn.active:hover {
 			background-color: var(--maple-gold);
 			border-color: var(--maple-gold);
@@ -917,74 +912,11 @@
 				}, (error) => {
 					console.error('Firestore subscription failed:', error);
 				});
-
-				// Below is the non-collection implementation
-				/*for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length && i < bossState.bossEntries.length; i++) {
-					const bossEntry = bossState.bossEntries[i];
-
-					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex), 'channels', String(i));
-
-					try {
-						firestoreUnsubscribeHandlers[i] = onSnapshot(docRef, (docSnap) => {
-							if (!docSnap.exists())
-								return;
-
-							const data = docSnap.data();
-
-							bossEntry.fromFirestore(data);
-
-							// TODO: Update channel timer, document title?
-						}, (error) => {
-							console.error('Firestore subscription failed:', error);
-						});
-					} catch (error) {
-						console.error('Firestore subscription failed:', error);
-					}
-				}*/
-			}
-
-			/*async function loadFirestoreLegacy(roomId, bossIndex, bossState) {
-				const db = window.__firebase.db;
-				const doc = window.__firebase.doc;
-				const getDoc = window.__firebase.getDoc;
-
-				const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
-
-				try {
-					const docSnap = await getDoc(docRef);
-
-					if (docSnap.exists()) {
-						const data = docSnap.data();
-
-						if ('bossEntries' in data) {
-							bossState.fromFirestore(data);
-						}
-						else {
-							for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length; i++) {
-								const pressTimeEntry = data.pressTimesMap[i];
-
-								bossState.bossEntries[i].pressTime = (pressTimeEntry == null ? null : pressTimeEntry.toDate());
-							}
-						}
-					}
-				} catch (error) {
-					console.error('Firestore load failed:', error);
-				}
-			}*/
-
-			function beginSubscribeToFirestore(roomId, bossIndex, bossState) {
-				/*// Before we subscribe to firestore, get the legacy data snapshot first
-				// TODO: Load the non-legacy data snapshot?
-				loadFirestoreLegacy(appState.roomId, appState.bossIndex, remoteBossState).then(() => {
-					// TODO: Clear legacy data?
-					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
-				});*/
-				subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 			}
 
 			function onFirebaseReady() {
 				if (appState.syncMode && appState.roomId !== null)
-					beginSubscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
+					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 			}
 
 			/* URL Params */
@@ -1194,9 +1126,11 @@
 				if (bossEntry !== null && qmarkButton) {
 					if (bossEntry.qmark) {
 						qmarkButton.classList.add('active')
+						qmarkButton.textContent = '?';
 						qmarkButton.setAttribute('aria-pressed', 'true');
 					} else {
 						qmarkButton.classList.remove('active')
+						qmarkButton.textContent = '✓';
 						qmarkButton.setAttribute('aria-pressed', 'false');
 					}
 				}
@@ -1280,7 +1214,7 @@
 
 				const qmarkButton = document.createElement('button');
 				qmarkButton.id = `qmarkButton-${channelIndex}`;
-				qmarkButton.textContent = '?';
+				qmarkButton.textContent = '✓';
 				qmarkButton.className = 'qmark-btn';
 
 				const clearButton = document.createElement('button');
@@ -1320,6 +1254,7 @@
 
 				qmarkButton.addEventListener('click', () => {
 					const isActive = qmarkButton.classList.toggle('active');
+					qmarkButton.textContent = (isActive ? '?' : '✓');
 					qmarkButton.setAttribute('aria-pressed', String(isActive));
 					setQmark(channelIndex, isActive);
 				});
@@ -1445,7 +1380,7 @@
 
 				if (appState.syncMode) {
 					remoteBossState.clear();
-					beginSubscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
+					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 				}
 
 				updateAllTimers();
@@ -1639,7 +1574,7 @@
 						}
 					}
 
-					beginSubscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
+					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 				} else {
 					if (firestoreUnsubscribeHandler)
 						firestoreUnsubscribeHandler();
