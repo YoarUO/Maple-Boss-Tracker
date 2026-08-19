@@ -470,7 +470,12 @@
 			color: var(--clear-hover-text);
 		}
 
-		.qmark-btn.active,
+		.qmark-btn.active {
+			background-color: var(--maple-gold);
+			border-color: var(--maple-gold);
+			color: var(--bg-void);
+		}
+
 		.qmark-btn.active:hover {
 			background-color: var(--maple-gold);
 			border-color: var(--maple-gold);
@@ -599,9 +604,9 @@
 		</div>
 
 		<script type="module">
-			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+			import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+			import {getFirestore, doc, setDoc, getDoc, onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import {getAuth, signInAnonymously} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
 				apiKey: "AIzaSyDPrVhDm9TOj9UUZi0qB66QQD6acGZCUtw",
@@ -618,7 +623,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = { db, doc, setDoc, getDoc, onSnapshot };
+				window.__firebase = {db, doc, setDoc, getDoc, onSnapshot};
 				window.onFirebaseReady?.();
 			} catch (error) {
 				console.error('Firebase init failed:', error);
@@ -882,7 +887,7 @@
 					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
 
 					return getDoc(docRef).then((docSnap) => {
-						const data = (docSnap.exists() ? docSnap.data() : { bossEntries: [] });
+						const data = (docSnap.exists() ? docSnap.data() : {bossEntries: []});
 
 						const bossEntries = (data.bossEntries ? data.bossEntries.slice() : []);
 
@@ -891,7 +896,7 @@
 
 						bossEntries[channelIndex] = bossEntry.toFirestore();
 
-						return setDoc(docRef, { bossEntries }, { merge: true });
+						return setDoc(docRef, {bossEntries}, {merge: true});
 					}).catch((error) => {
 						console.error('Firestore write failed:', error);
 					});
@@ -1209,13 +1214,13 @@
 					}
 
 					if (respawnAvgLabel)
-						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (respawnMinLabel)
-						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (respawnMaxLabel)
-						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (countdownLabel) {
 						if (timeRemaining <= -2 * delayRandMs) {
@@ -1361,7 +1366,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					list.push({ channel: i + 1, timeRemaining: timeRemaining })
+					list.push({channel: i + 1, timeRemaining: timeRemaining})
 				}
 
 				if (list.length == 0)
@@ -1445,11 +1450,11 @@
 					const copyLinkButton = document.getElementById('copyLinkButton');
 					const original = copyLinkButton.textContent;
 					copyLinkButton.textContent = 'Copied!';
-					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
+					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyLinkButton.textContent = 'Failed!';
-					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
+					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
 				});
 			}
 
@@ -1483,11 +1488,11 @@
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
-					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyTimersButton.textContent = 'Failed!';
-					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
 				});
 			}
 
