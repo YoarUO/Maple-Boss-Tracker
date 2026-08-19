@@ -605,7 +605,7 @@
 
 		<script type="module">
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
@@ -623,7 +623,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = { db, doc, setDoc, getDoc, onSnapshot };
+				window.__firebase = { db, doc, getDoc, setDoc, collection, onSnapshot };
 				window.onFirebaseReady?.();
 			} catch (error) {
 				console.error('Firebase init failed:', error);
@@ -875,7 +875,7 @@
 			}
 
 			/* Firestore */
-			const firestoreUnsubscribeHandlers = Array(CHANNELS_MAX);
+			let firestoreUnsubscribeHandler = null;
 
 			function writeBossEntryToFirestore(roomId, bossIndex, channelIndex, bossEntry) {
 				const db = window.__firebase.db;
@@ -897,16 +897,29 @@
 			}
 
 			function subscribeToFirestore(roomId, bossIndex, bossState) {
-				for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length; i++) {
-					if (firestoreUnsubscribeHandlers[i])
-						firestoreUnsubscribeHandlers[i]();
-				}
+				if (firestoreUnsubscribeHandler)
+					firestoreUnsubscribeHandler();
 
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
+				const collection = window.__firebase.collection;
 				const onSnapshot = window.__firebase.onSnapshot;
 
-				for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length && i < bossState.bossEntries.length; i++) {
+				const colRef = collection(db, 'rooms', roomId, 'bosses', String(bossIndex), 'channels');
+
+				firestoreUnsubscribeHandler = onSnapshot(colRef, (colSnap) => {
+					colSnap.forEach((docSnap) => {
+						const channelIndex = parseInt(docSnap.id);
+
+						if (channelIndex >= 0 && channelIndex < bossState.bossEntries.length)
+							bossState.bossEntries[channelIndex].fromFirestore(docSnap.data());
+					});
+				}, (error) => {
+					console.error('Firestore subscription failed:', error);
+				});
+
+				// Below is the non-collection implementation
+				/*for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length && i < bossState.bossEntries.length; i++) {
 					const bossEntry = bossState.bossEntries[i];
 
 					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex), 'channels', String(i));
@@ -927,10 +940,10 @@
 					} catch (error) {
 						console.error('Firestore subscription failed:', error);
 					}
-				}
+				}*/
 			}
 
-			async function loadFirestoreLegacy(roomId, bossIndex, bossState) {
+			/*async function loadFirestoreLegacy(roomId, bossIndex, bossState) {
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
 				const getDoc = window.__firebase.getDoc;
@@ -957,14 +970,16 @@
 				} catch (error) {
 					console.error('Firestore load failed:', error);
 				}
-			}
+			}*/
 
 			function beginSubscribeToFirestore(roomId, bossIndex, bossState) {
-				// Before we subscribe to firestore, get the legacy data snapshot first
+				/*// Before we subscribe to firestore, get the legacy data snapshot first
 				// TODO: Load the non-legacy data snapshot?
 				loadFirestoreLegacy(appState.roomId, appState.bossIndex, remoteBossState).then(() => {
+					// TODO: Clear legacy data?
 					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
-				});
+				});*/
+				subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 			}
 
 			function onFirebaseReady() {
@@ -1626,12 +1641,8 @@
 
 					beginSubscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 				} else {
-					for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length; i++) {
-						if (firestoreUnsubscribeHandlers[i]) {
-							firestoreUnsubscribeHandlers[i]();
-							firestoreUnsubscribeHandlers[i] = null;
-						}
-					}
+					if (firestoreUnsubscribeHandler)
+						firestoreUnsubscribeHandler();
 				}
 
 				saveAppState();
