@@ -604,9 +604,9 @@
 		</div>
 
 		<script type="module">
-			import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import {getFirestore, doc, setDoc, getDoc, onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-			import {getAuth, signInAnonymously} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+			import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
 				apiKey: "AIzaSyDPrVhDm9TOj9UUZi0qB66QQD6acGZCUtw",
@@ -623,7 +623,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = {db, doc, setDoc, getDoc, onSnapshot};
+				window.__firebase = { db, doc, setDoc, getDoc, onSnapshot };
 				window.onFirebaseReady?.();
 			} catch (error) {
 				console.error('Firebase init failed:', error);
@@ -875,88 +875,101 @@
 			}
 
 			/* Firestore */
-			let unsubscribeFromFirestore = null;
+			const firestoreUnsubscribeHandlers = Array(CHANNELS_MAX);
 
 			function writeBossEntryToFirestore(roomId, bossIndex, channelIndex, bossEntry) {
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
-				const getDoc = window.__firebase.getDoc;
 				const setDoc = window.__firebase.setDoc;
 
 				try {
-					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
+					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex), 'channels', String(channelIndex));
 
-					return getDoc(docRef).then((docSnap) => {
-						const data = (docSnap.exists() ? docSnap.data() : {bossEntries: []});
-
-						const bossEntries = (data.bossEntries ? data.bossEntries.slice() : []);
-
-						while (bossEntries.length < CHANNELS_MAX)
-							bossEntries.push(new BossEntry().toFirestore());
-
-						bossEntries[channelIndex] = bossEntry.toFirestore();
-
-						return setDoc(docRef, {bossEntries}, {merge: true});
-					}).catch((error) => {
-						console.error('Firestore write failed:', error);
-					});
+					setDoc(docRef, bossEntry.toFirestore());
 				} catch (error) {
 					console.error('Firestore write failed:', error);
 				}
 			}
 
 			function writeBossStateToFirestore(roomId, bossIndex, bossState) {
-				const db = window.__firebase.db;
-				const doc = window.__firebase.doc;
-				const setDoc = window.__firebase.setDoc;
-
-				try {
-					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
-
-					setDoc(docRef, bossState.toFirestore());
-				} catch (error) {
-					console.error('Firestore write failed:', error);
-				}
+				for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length; i++)
+					writeBossEntryToFirestore(roomId, bossIndex, i, bossState.bossEntries[i]);
 			}
 
 			function subscribeToFirestore(roomId, bossIndex, bossState) {
-				if (unsubscribeFromFirestore)
-					unsubscribeFromFirestore();
+				for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length; i++) {
+					if (firestoreUnsubscribeHandlers[i])
+						firestoreUnsubscribeHandlers[i]();
+				}
 
 				const db = window.__firebase.db;
 				const doc = window.__firebase.doc;
 				const onSnapshot = window.__firebase.onSnapshot;
 
+				for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length && i < bossState.bossEntries.length; i++) {
+					const bossEntry = bossState.bossEntries[i];
+
+					const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex), 'channels', String(i));
+
+					try {
+						firestoreUnsubscribeHandlers[i] = onSnapshot(docRef, (docSnap) => {
+							if (!docSnap.exists())
+								return;
+
+							const data = docSnap.data();
+
+							bossEntry.fromFirestore(data);
+
+							// TODO: Update channel timer, document title?
+						}, (error) => {
+							console.error('Firestore subscription failed:', error);
+						});
+					} catch (error) {
+						console.error('Firestore subscription failed:', error);
+					}
+				}
+			}
+
+			async function loadFirestoreLegacy(roomId, bossIndex, bossState) {
+				const db = window.__firebase.db;
+				const doc = window.__firebase.doc;
+				const getDoc = window.__firebase.getDoc;
+
 				const docRef = doc(db, 'rooms', roomId, 'bosses', String(bossIndex));
 
-				unsubscribeFromFirestore = onSnapshot(docRef, (docSnap) => {
-					if (!docSnap.exists())
-						return;
+				try {
+					const docSnap = await getDoc(docRef);
 
-					const data = docSnap.data();
+					if (docSnap.exists()) {
+						const data = docSnap.data();
 
-					if ('bossEntries' in data) {
-						bossState.fromFirestore(data);
-					}
-					else {
-						// Legacy
-						for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length; i++) {
-							const pressTimeEntry = data.pressTimesMap[i];
+						if ('bossEntries' in data) {
+							bossState.fromFirestore(data);
+						}
+						else {
+							for (let i = 0; i < CHANNELS_MAX && i < bossState.bossEntries.length; i++) {
+								const pressTimeEntry = data.pressTimesMap[i];
 
-							bossState.bossEntries[i].pressTime = (pressTimeEntry == null ? null : pressTimeEntry.toDate());
+								bossState.bossEntries[i].pressTime = (pressTimeEntry == null ? null : pressTimeEntry.toDate());
+							}
 						}
 					}
+				} catch (error) {
+					console.error('Firestore load failed:', error);
+				}
+			}
 
-					updateAllTimers();
-					updateDocumentTitle();
-				}, (error) => {
-					console.error('Firestore subscription failed:', error);
+			function beginSubscribeToFirestore(roomId, bossIndex, bossState) {
+				// Before we subscribe to firestore, get the legacy data snapshot first
+				// TODO: Load the non-legacy data snapshot?
+				loadFirestoreLegacy(appState.roomId, appState.bossIndex, remoteBossState).then(() => {
+					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 				});
 			}
 
 			function onFirebaseReady() {
 				if (appState.syncMode && appState.roomId !== null)
-					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
+					beginSubscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 			}
 
 			/* URL Params */
@@ -1156,12 +1169,12 @@
 				const bossEntry = getBossEntry(channelIndex);
 				const pressTime = (bossEntry === null ? null : bossEntry.pressTime);
 
-				const qmarkButton = timerContainer.querySelector('#qmarkButton');
-				const recordInput = timerContainer.querySelector('#recordInput');
-				const respawnAvgLabel = timerContainer.querySelector('#respawnAvgLabel');
-				const respawnMinLabel = timerContainer.querySelector('#respawnMinLabel');
-				const respawnMaxLabel = timerContainer.querySelector('#respawnMaxLabel');
-				const countdownLabel = timerContainer.querySelector('#countdownLabel');
+				const qmarkButton = timerContainer.querySelector(`#qmarkButton-${channelIndex}`);
+				const recordInput = timerContainer.querySelector(`#recordInput-${channelIndex}`);
+				const respawnAvgLabel = timerContainer.querySelector(`#respawnAvgLabel-${channelIndex}`);
+				const respawnMinLabel = timerContainer.querySelector(`#respawnMinLabel-${channelIndex}`);
+				const respawnMaxLabel = timerContainer.querySelector(`#respawnMaxLabel-${channelIndex}`);
+				const countdownLabel = timerContainer.querySelector(`#countdownLabel-${channelIndex}`);
 
 				if (bossEntry !== null && qmarkButton) {
 					if (bossEntry.qmark) {
@@ -1214,13 +1227,13 @@
 					}
 
 					if (respawnAvgLabel)
-						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (respawnMinLabel)
-						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (respawnMaxLabel)
-						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (countdownLabel) {
 						if (timeRemaining <= -2 * delayRandMs) {
@@ -1251,7 +1264,7 @@
 				recordButton.textContent = `Channel ${channelIndex + 1}`;
 
 				const qmarkButton = document.createElement('button');
-				qmarkButton.id = 'qmarkButton';
+				qmarkButton.id = `qmarkButton-${channelIndex}`;
 				qmarkButton.textContent = '?';
 				qmarkButton.className = 'qmark-btn';
 
@@ -1260,7 +1273,7 @@
 				clearButton.className = 'clear-btn';
 
 				const recordInput = document.createElement('input');
-				recordInput.id = 'recordInput';
+				recordInput.id = `recordInput-${channelIndex}`;
 				recordInput.className = "record-input"
 				recordInput.type = "time";
 				recordInput.min = "00:00"
@@ -1268,19 +1281,19 @@
 				recordInput.step = "60"
 
 				const countdownLabel = document.createElement('span');
-				countdownLabel.id = 'countdownLabel';
+				countdownLabel.id = `countdownLabel-${channelIndex}`;
 				countdownLabel.className = 'countdown-label';
 
 				const respawnAvgLabel = document.createElement('span');
-				respawnAvgLabel.id = 'respawnAvgLabel';
+				respawnAvgLabel.id = `respawnAvgLabel-${channelIndex}`;
 				respawnAvgLabel.className = 'respawn-label';
 
 				const respawnMinLabel = document.createElement('span');
-				respawnMinLabel.id = 'respawnMinLabel';
+				respawnMinLabel.id = `respawnMinLabel-${channelIndex}`;
 				respawnMinLabel.className = 'range-label';
 
 				const respawnMaxLabel = document.createElement('span');
-				respawnMaxLabel.id = 'respawnMaxLabel';
+				respawnMaxLabel.id = `respawnMaxLabel-${channelIndex}`;
 				respawnMaxLabel.className = 'range-label';
 
 				recordButton.addEventListener('click', () => {
@@ -1366,7 +1379,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					list.push({channel: i + 1, timeRemaining: timeRemaining})
+					list.push({ channel: i + 1, timeRemaining: timeRemaining })
 				}
 
 				if (list.length == 0)
@@ -1417,7 +1430,7 @@
 
 				if (appState.syncMode) {
 					remoteBossState.clear();
-					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
+					beginSubscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 				}
 
 				updateAllTimers();
@@ -1450,11 +1463,11 @@
 					const copyLinkButton = document.getElementById('copyLinkButton');
 					const original = copyLinkButton.textContent;
 					copyLinkButton.textContent = 'Copied!';
-					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
+					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyLinkButton.textContent = 'Failed!';
-					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
+					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
 				});
 			}
 
@@ -1488,11 +1501,11 @@
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
-					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
+					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyTimersButton.textContent = 'Failed!';
-					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
+					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
 				});
 			}
 
@@ -1611,11 +1624,13 @@
 						}
 					}
 
-					subscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
+					beginSubscribeToFirestore(appState.roomId, appState.bossIndex, remoteBossState);
 				} else {
-					if (unsubscribeFromFirestore) {
-						unsubscribeFromFirestore();
-						unsubscribeFromFirestore = null;
+					for (let i = 0; i < CHANNELS_MAX && i < firestoreUnsubscribeHandlers.length; i++) {
+						if (firestoreUnsubscribeHandlers[i]) {
+							firestoreUnsubscribeHandlers[i]();
+							firestoreUnsubscribeHandlers[i] = null;
+						}
 					}
 				}
 
