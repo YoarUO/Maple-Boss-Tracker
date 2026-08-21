@@ -1418,7 +1418,7 @@
 				return list
 					.slice(0, toDisplay)
 					.map((item) => `c${item.channel} ${formatTimeIcon(item.timeRemaining, delayRandMs)}`)
-					.join(', ');
+					.join('|');
 
 				//return `⌚${timers}`;
 			}
