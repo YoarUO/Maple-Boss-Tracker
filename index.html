@@ -7,18 +7,22 @@
 	<title>Maple Boss Tracker Dashboard</title>
 	<script>
 		const THEME_KEY = 'mapleBossTracker.theme';
+		const DEFAULT_ICON = '🍁';
 
 		class themeDefinition {
-			constructor(icon, name) {
-				this.icon = icon;
+			constructor(name, icon, overridesDocumentIcon) {
 				this.name = name;
+				this.icon = icon;
+				this.overridesDocumentIcon = overridesDocumentIcon;
 			}
 		}
 
 		const themeDefinitions = [
-			new themeDefinition('☀', 'light'),
-			new themeDefinition('☾', 'dark'),
-			new themeDefinition('🍂', 'autumn')
+			new themeDefinition('light', '☀️', false),
+			new themeDefinition('dark', '🌙', false),
+			new themeDefinition('autumn', '🍂', true),
+			new themeDefinition('desert', '🌵', true),
+			new themeDefinition('aqua', '🐠', true)
 		];
 
 		function findThemeIndex(themeName) {
@@ -32,16 +36,18 @@
 			return themeIndex;
 		}
 
-		function getNextThemeIcon(themeIndex) {
-			if (themeDefinitions.length == 0)
-				return '☾'; // Fallback icon
+		function setFaviconIcon(icon) {
+			const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`;
 
-			let nextThemeIndex = themeIndex + 1;
+			let link = document.querySelector("link[rel~='icon']");
 
-			if (nextThemeIndex >= themeDefinitions.length)
-				nextThemeIndex = 0;
+			if (!link) {
+				link = document.createElement('link');
+				link.rel = 'icon';
+				document.head.appendChild(link);
+			}
 
-			return themeDefinitions[nextThemeIndex].icon;
+			link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
 		}
 
 		function setTheme(themeDefinition) {
@@ -49,8 +55,13 @@
 
 			const themeToggleButton = document.getElementById('themeToggleButton');
 
+			const icon = themeDefinition.icon;
+			//const icon = getNextThemeIcon(themeDefinitions.indexOf(themeDefinition));
+
 			if (themeToggleButton)
-				themeToggleButton.textContent = getNextThemeIcon(themeDefinitions.indexOf(themeDefinition));
+				themeToggleButton.textContent = icon;
+
+			setFaviconIcon(themeDefinition.overridesDocumentIcon ? icon : DEFAULT_ICON);
 		}
 
 		if (themeDefinitions.length != 0) {
@@ -62,6 +73,7 @@
 				themeIndex = 0;
 
 			setTheme(themeDefinitions[themeIndex]);
+			setFaviconIcon(DEFAULT_ICON);
 		}
 	</script>
 	<style>
@@ -148,6 +160,68 @@
 			background-image:
 				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(224, 138, 60, 0.08), transparent),
 				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(193, 68, 14, 0.06), transparent);
+		}
+
+		[data-theme="desert"] {
+			--bg-void: #1f160c;
+			--bg-panel: #2a1e11;
+			--bg-card: #332615;
+			--bg-input: #241a0f;
+			--hairline: #55442a;
+			--hairline-soft: #423320;
+			--text-primary: #f3e4c8;
+			--text-secondary: #cbab7c;
+			--text-muted: #9c8158;
+			--maple-gold: #e0a33c;
+			--maple-gold-dim: #a87a2a;
+			--warning-orange: #ff9d42;
+			--warning-glow: rgba(255, 157, 66, 0.18);
+			--success-green: #a3b85a;
+			--success-glow: rgba(163, 184, 90, 0.18);
+			--danger-red: #c1590e;
+			--danger-glow: rgba(193, 89, 14, 0.18);
+			--bg-button: #362715;
+			--bg-button-hover: #45331c;
+			--clear-hover-bg: #3a2110;
+			--clear-hover-border: #b6633a;
+			--clear-hover-text: #f2b28b;
+		}
+
+		[data-theme="desert"] body {
+			background-image:
+				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(224, 163, 60, 0.10), transparent),
+				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(193, 89, 14, 0.06), transparent);
+		}
+
+		[data-theme="aqua"] {
+			--bg-void: #061a22;
+			--bg-panel: #0b2530;
+			--bg-card: #0f2e3b;
+			--bg-input: #081e27;
+			--hairline: #1c4a5a;
+			--hairline-soft: #163b48;
+			--text-primary: #dff3f7;
+			--text-secondary: #8fc4d4;
+			--text-muted: #5d94a5;
+			--maple-gold: #3fc7d9;
+			--maple-gold-dim: #2a8a99;
+			--warning-orange: #f0a63e;
+			--warning-glow: rgba(240, 166, 62, 0.18);
+			--success-green: #4fd9a5;
+			--success-glow: rgba(79, 217, 165, 0.18);
+			--danger-red: #e0505a;
+			--danger-glow: rgba(224, 80, 90, 0.18);
+			--bg-button: #103544;
+			--bg-button-hover: #16465a;
+			--clear-hover-bg: #1a2f3a;
+			--clear-hover-border: #b6413a;
+			--clear-hover-text: #f28b82;
+		}
+
+		[data-theme="aqua"] body {
+			background-image:
+				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(63, 199, 217, 0.10), transparent),
+				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(79, 217, 165, 0.06), transparent);
 		}
 
 		* {
@@ -1341,12 +1415,12 @@
 
 				const toDisplay = 3;
 
-				const timers = list
+				return list
 					.slice(0, toDisplay)
-					.map((item) => `ch${item.channel}: ${formatTimeIcon(item.timeRemaining, delayRandMs)}`)
+					.map((item) => `c${item.channel} ${formatTimeIcon(item.timeRemaining, delayRandMs)}`)
 					.join(', ');
 
-				return `⌚${timers}`;
+				//return `⌚${timers}`;
 			}
 
 			/* Helper Functions */
@@ -1507,7 +1581,12 @@
 			if (themeDefinitions.length != 0) {
 				const themeName = document.documentElement.getAttribute('data-theme');
 
-				themeToggleButton.textContent = getNextThemeIcon(findThemeIndex(themeName));
+				let themeIndex = findThemeIndex(themeName);
+
+				if (themeIndex == -1)
+					themeIndex = 0;
+
+				themeToggleButton.textContent = themeDefinitions[themeIndex].icon;
 			}
 
 			/* Options Menu */
