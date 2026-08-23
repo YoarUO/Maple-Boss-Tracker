@@ -524,17 +524,18 @@
 			letter-spacing: 0.01em;
 		}
 
-		.qmark-btn {
+		.history-btn {
 			margin-left: auto;
 		}
 
+		.history-btn,
 		.qmark-btn,
 		.clear-btn {
 			background: transparent;
 			border-color: var(--hairline-soft);
 			color: var(--text-muted);
 			font-size: 12px;
-			padding: 5px 10px;
+			padding: 5px 8px;
 		}
 
 		.clear-btn:hover {
@@ -602,6 +603,76 @@
 
 		.options-menu .form-group {
 			justify-content: space-between;
+		}
+
+		.history-dialog {
+			background-color: var(--bg-panel);
+			border: 1px solid var(--hairline);
+			border-radius: 10px;
+			color: var(--text-primary);
+			font-family: var(--font-display);
+			padding: 18px 20px;
+			width: min(320px, calc(100vw - 48px));
+		}
+
+		.history-dialog::backdrop {
+			background: rgba(0, 0, 0, 0.5);
+		}
+
+		.history-dialog-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			margin-bottom: 12px;
+		}
+
+		.history-dialog-title {
+			font-size: 15px;
+			font-weight: 700;
+			color: var(--maple-gold);
+		}
+
+		.history-dialog-close {
+			background: transparent;
+			border: none;
+			color: var(--text-muted);
+			font-size: 18px;
+			line-height: 1;
+			padding: 2px 6px;
+		}
+
+		.history-dialog-close:hover {
+			background: transparent;
+			border: none;
+			color: var(--maple-gold);
+		}
+
+		.history-dialog-list {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+		}
+
+		.history-dialog-list li {
+			font-family: var(--font-mono);
+			font-size: 13px;
+			color: var(--text-secondary);
+			border-bottom: 1px solid var(--hairline-soft);
+			padding-bottom: 6px;
+		}
+
+		.history-dialog-list li:last-child {
+			border-bottom: none;
+			padding-bottom: 0;
+		}
+
+		.history-empty {
+			font-size: 13px;
+			color: var(--text-muted);
 		}
 	</style>
 </head>
@@ -671,6 +742,14 @@
 			<button id="clearTimersButton" type="button">Clear Timers</button>
 		</div>
 
+		<dialog id="historyDialog" class="history-dialog">
+			<div class="history-dialog-header">
+				<span class="history-dialog-title" id="historyDialogTitle">History</span>
+				<button type="button" class="history-dialog-close" id="historyDialogClose" aria-label="Close">&times;</button>
+			</div>
+			<ul class="history-dialog-list" id="historyDialogList"></ul>
+		</dialog>
+
 		<script type="module">
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 			import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
@@ -715,6 +794,10 @@
 			const timersContainer = document.getElementById('timerContainer');
 			const formatLocalTimeCheckbox = document.getElementById('formatLocalTimeCheckbox');
 			const syncModeCheckbox = document.getElementById('syncModeCheckbox');
+			const historyDialog = document.getElementById('historyDialog');
+			const historyDialogTitle = document.getElementById('historyDialogTitle');
+			const historyDialogClose = document.getElementById('historyDialogClose');
+			const historyDialogList = document.getElementById('historyDialogList');
 
 			/* Boss Definitions */
 			class BossDefinition {
@@ -770,16 +853,60 @@
 			});
 
 			/* AppState */
+			const MAX_HISTORY_SIZE = 5;
+
+			class HistoryList {
+				constructor() {
+					this.items = [];
+				}
+
+				get() {
+					return this.items;
+				}
+
+				add(record) {
+					this.items.unshift(record);
+					if (this.items.length > MAX_HISTORY_SIZE)
+						this.items.pop();
+				}
+
+				toJSON() {
+					return this.items.map(date => date === null ? null : date.toISOString());
+				}
+
+				fromJSON(json) {
+					this.items = (json || []).map(value => value === null ? null : new Date(value));
+				}
+
+				toFirestore() {
+					return this.items;
+				}
+
+				fromFirestore(data) {
+					this.items = (data || []).map(value => value === null ? null : (value.toDate ? value.toDate() : new Date(value)));
+				}
+
+				copy(history) {
+					this.items = history.get().slice();
+				}
+
+				clear() {
+					this.items.length = 0;
+				}
+			}
+
 			class BossEntry {
 				constructor() {
 					this.pressTime = null;
 					this.qmark = false;
+					this.history = new HistoryList();
 				}
 
 				toJSON() {
 					return {
 						pressTime: this.pressTime === null ? null : this.pressTime.toISOString(),
 						qmark: Boolean(this.qmark),
+						history: this.history.toJSON()
 					};
 				}
 
@@ -789,31 +916,40 @@
 
 					if ('qmark' in json)
 						this.qmark = (json.qmark === null ? false : Boolean(json.qmark));
+
+					if ('history' in json)
+						this.history.fromJSON(json.history);
 				}
 
 				toFirestore() {
 					return {
 						pressTime: this.pressTime,
 						qmark: Boolean(this.qmark),
+						history: this.history.toFirestore()
 					};
 				}
 
 				fromFirestore(data) {
 					if ('pressTime' in data)
-						this.pressTime = ((data.pressTime === null || data.pressTime === undefined) ? null : (data.pressTime.toDate ? data.pressTime.toDate() : new Date(data.pressTime)));
+						this.pressTime = (data.pressTime === null ? null : (data.pressTime.toDate ? data.pressTime.toDate() : new Date(data.pressTime)));
 
 					if ('qmark' in data)
-						this.qmark = data.qmark === null ? false : Boolean(data.qmark);
+						this.qmark = (data.qmark === null ? false : Boolean(data.qmark));
+
+					if ('history' in data)
+						this.history.fromFirestore(data.history);
 				}
 
 				copy(bossEntry) {
 					this.pressTime = bossEntry.pressTime;
 					this.qmark = bossEntry.qmark;
+					this.history.copy(bossEntry.history);
 				}
 
 				clear() {
 					this.pressTime = null;
 					this.qmark = false;
+					this.history.clear();
 				}
 			}
 
@@ -1079,6 +1215,9 @@
 				if (bossEntry === null)
 					return;
 
+				if (bossEntry.pressTime !== null)
+					bossEntry.history.add(bossEntry.pressTime);
+
 				bossEntry.pressTime = pressTime;
 
 				if (appState.syncMode)
@@ -1100,6 +1239,39 @@
 				else
 					saveAppState();
 			}
+
+			const emptyHistoryDialogItem = document.createElement('li');
+			emptyHistoryDialogItem.className = 'history-empty';
+			emptyHistoryDialogItem.textContent = 'No history yet.';
+
+			const historyDialogItems = Array(MAX_HISTORY_SIZE);
+
+			for (let i = 0; i < MAX_HISTORY_SIZE; i++)
+				historyDialogItems[i] = document.createElement('li');
+
+			function showHistory(channelIndex) {
+				const bossEntry = getBossEntry(channelIndex);
+				const historyItems = (bossEntry === null ? [] : bossEntry.history.get());
+
+				historyDialogTitle.textContent = `Channel ${channelIndex + 1} History`;
+				historyDialogList.textContent = '';
+
+				if (historyItems.length === 0) {
+					historyDialogList.appendChild(emptyHistoryDialogItem);
+				} else {
+					for (let i = 0; i < MAX_HISTORY_SIZE && i < historyItems.length; i++) {
+						const historyDialogItem = historyDialogItems[i];
+						historyDialogItem.textContent = (historyItems[i] === null ? '—' : historyItems[i].toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }));
+						historyDialogList.appendChild(historyDialogItem);
+					}
+				}
+
+				historyDialog.showModal();
+			}
+
+			historyDialogClose.addEventListener('click', () => {
+				historyDialog.close();
+			});
 
 			/* Load State */
 			loadAppState();
@@ -1287,13 +1459,20 @@
 				const recordButton = document.createElement('button');
 				recordButton.textContent = `Channel ${channelIndex + 1}`;
 
+				const historyButton = document.createElement('button');
+				historyButton.id = `historyButton-${channelIndex}`;
+				historyButton.textContent = '🕘';
+				historyButton.className = 'history-btn';
+				//historyButton.setAttribute('aria-label', 'History');
+				//historyButton.setAttribute('title', 'History');
+
 				const qmarkButton = document.createElement('button');
 				qmarkButton.id = `qmarkButton-${channelIndex}`;
 				qmarkButton.textContent = '✓';
 				qmarkButton.className = 'qmark-btn';
 
 				const clearButton = document.createElement('button');
-				clearButton.textContent = 'Clear';
+				clearButton.textContent = '✕';
 				clearButton.className = 'clear-btn';
 
 				const recordInput = document.createElement('input');
@@ -1327,6 +1506,10 @@
 					updateDocumentTitle();
 				});
 
+				historyButton.addEventListener('click', () => {
+					showHistory(channelIndex);
+				});
+
 				qmarkButton.addEventListener('click', () => {
 					const isActive = qmarkButton.classList.toggle('active');
 					qmarkButton.textContent = (isActive ? '?' : '✓');
@@ -1348,6 +1531,7 @@
 				});
 
 				rowTop.appendChild(recordButton);
+				rowTop.appendChild(historyButton);
 				rowTop.appendChild(qmarkButton);
 				rowTop.appendChild(clearButton);
 
