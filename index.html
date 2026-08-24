@@ -22,7 +22,8 @@
 			new themeDefinition('dark', '🌙', false),
 			new themeDefinition('autumn', '🍂', true),
 			new themeDefinition('desert', '🌵', true),
-			new themeDefinition('aqua', '🐠', true)
+			new themeDefinition('aqua', '🐠', true),
+			new themeDefinition('forest', '🌳', true)
 		];
 
 		function findThemeIndex(themeName) {
@@ -221,6 +222,37 @@
 			background-image:
 				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(63, 199, 217, 0.10), transparent),
 				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(79, 217, 165, 0.06), transparent);
+		}
+
+		[data-theme="forest"] {
+			--bg-void: #0d1710;
+			--bg-panel: #142016;
+			--bg-card: #18271a;
+			--bg-input: #101a12;
+			--hairline: #2c4230;
+			--hairline-soft: #223526;
+			--text-primary: #e3ecdf;
+			--text-secondary: #9db89a;
+			--text-muted: #647f65;
+			--maple-gold: #6fbf5e;
+			--maple-gold-dim: #427a37;
+			--warning-orange: #d9a441;
+			--warning-glow: rgba(217, 164, 65, 0.18);
+			--success-green: #52c97a;
+			--success-glow: rgba(82, 201, 122, 0.18);
+			--danger-red: #c1502e;
+			--danger-glow: rgba(193, 80, 46, 0.18);
+			--bg-button: #1c2e1f;
+			--bg-button-hover: #263c29;
+			--clear-hover-bg: #2a1a12;
+			--clear-hover-border: #b6633a;
+			--clear-hover-text: #f2b28b;
+		}
+
+		[data-theme="forest"] body {
+			background-image:
+				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(111, 191, 94, 0.08), transparent),
+				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(82, 201, 122, 0.06), transparent);
 		}
 
 		* {
@@ -751,9 +783,9 @@
 		</dialog>
 
 		<script type="module">
-			import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import {getFirestore, doc, getDoc, setDoc, collection, onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-			import {getAuth, signInAnonymously} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+			import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
 				apiKey: "AIzaSyDPrVhDm9TOj9UUZi0qB66QQD6acGZCUtw",
@@ -770,7 +802,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = {db, doc, getDoc, setDoc, collection, onSnapshot};
+				window.__firebase = { db, doc, getDoc, setDoc, collection, onSnapshot };
 				window.onFirebaseReady?.();
 			} catch (error) {
 				console.error('Firebase init failed:', error);
@@ -1261,7 +1293,7 @@
 				} else {
 					for (let i = 0; i < MAX_HISTORY_SIZE && i < historyItems.length; i++) {
 						const historyDialogItem = historyDialogItems[i];
-						historyDialogItem.textContent = (historyItems[i] === null ? '—' : historyItems[i].toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}));
+						historyDialogItem.textContent = (historyItems[i] === null ? '—' : historyItems[i].toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }));
 						historyDialogList.appendChild(historyDialogItem);
 					}
 				}
@@ -1423,13 +1455,13 @@
 					}
 
 					if (respawnAvgLabel)
-						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (respawnMinLabel)
-						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (respawnMaxLabel)
-						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
+						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
 
 					if (countdownLabel) {
 						if (timeRemaining <= -2 * delayRandMs) {
@@ -1606,7 +1638,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					list.push({channel: i + 1, timeRemaining: timeRemaining})
+					list.push({ channel: i + 1, timeRemaining: timeRemaining })
 				}
 
 				if (list.length == 0)
@@ -1690,11 +1722,11 @@
 					const copyLinkButton = document.getElementById('copyLinkButton');
 					const original = copyLinkButton.textContent;
 					copyLinkButton.textContent = 'Copied!';
-					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
+					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyLinkButton.textContent = 'Failed!';
-					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
+					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
 				});
 			}
 
@@ -1728,11 +1760,11 @@
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
-					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
+					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyTimersButton.textContent = 'Failed!';
-					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
+					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
 				});
 			}
 
