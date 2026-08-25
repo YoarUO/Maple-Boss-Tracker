@@ -706,6 +706,10 @@
 			font-size: 13px;
 			color: var(--text-muted);
 		}
+
+		.form-group[hidden] {
+			display: none;
+		}
 	</style>
 </head>
 
@@ -752,15 +756,23 @@
 		<!-- Configuration Panel -->
 		<div class="config-row">
 			<div class="form-group">
+				<label for="groupSelect" class="main-label">Group</label>
+				<select id="groupSelect"></select>
+			</div>
+			<div class="form-group">
 				<label for="bossSelect" class="main-label">Boss</label>
 				<select id="bossSelect"></select>
 			</div>
 			<div class="form-group">
-				<label class="main-label">Respawn Delay</label>
+				<label class="main-label">Delay</label>
 				<input type="number" id="delayHoursInput" class="input-time" min="0" step="1" value="1">
 				<span class="time-unit-label">hr</span>
 				<input type="number" id="delayMinutesInput" class="input-time" min="0" max="59" step="1" value="0">
 				<span class="time-unit-label">min</span>
+			</div>
+			<div class="form-group checkbox-group" id="favoriteGroup" hidden>
+				<input type="checkbox" id="favoriteCheckbox" class="styled-checkbox">
+				<label for="favoriteCheckbox" class="checkbox-label">Favorite</label>
 			</div>
 		</div>
 
@@ -818,9 +830,12 @@
 			const APPSTATE_KEY = 'mapleBossTracker.appState';
 
 			/* Get Element Handles */
+			const groupSelect = document.getElementById('groupSelect');
 			const bossSelect = document.getElementById('bossSelect');
 			const delayHoursInput = document.getElementById('delayHoursInput');
 			const delayMinutesInput = document.getElementById('delayMinutesInput');
+			const favoriteGroup = document.getElementById('favoriteGroup');
+			const favoriteCheckbox = document.getElementById('favoriteCheckbox');
 			const channelsInput = document.getElementById('channelsInput');
 			const delayRandPercInput = document.getElementById('delayRandPercInput');
 			const timersContainer = document.getElementById('timerContainer');
@@ -832,31 +847,101 @@
 			const historyDialogList = document.getElementById('historyDialogList');
 
 			/* Boss Definitions */
-			class BossDefinition {
-				constructor(name, order, delayMinutes) {
+			class GroupDefinition {
+				constructor(groupIndex, name, bossDefinitions) {
+					this.groupIndex = groupIndex;
 					this.name = name;
-					this.order = order;
+					this.bossDefinitions = bossDefinitions;
+				}
+			}
+
+			class BossDefinition {
+				constructor(bossIndex, name, delayMinutes) {
+					this.bossIndex = bossIndex;
+					this.name = name;
 					this.delayMinutes = delayMinutes;
 				}
 			}
 
-			const bossDefinitions = [
-				new BossDefinition('Custom', 0, 60),
-
-				new BossDefinition('Deo', 1, 60),
-				new BossDefinition('Seruf', 2, 60),
-				new BossDefinition('Manon', 3, 90),
-				new BossDefinition('Leviathan', 7, 240),
-
-				new BossDefinition('Timer', 5, 120),
-				new BossDefinition('Kimera', 6, 180),
-
-				new BossDefinition('Griffey', 4, 90)
+			const bossTable = [
+				new GroupDefinition(0, 'Favorites', [
+					new BossDefinition(0, 'Custom', 60),
+				]),
+				new GroupDefinition(1, 'Victoria Island', [
+					new BossDefinition(8, 'Mano', 60),
+					new BossDefinition(9, 'Stumpy', 60),
+					new BossDefinition(10, 'Faust', 120),
+					new BossDefinition(11, 'King Clang', 120),
+					new BossDefinition(12, 'Mushmom', 120),
+					new BossDefinition(13, 'Dyle', 120),
+					new BossDefinition(14, 'Zombie Mushmom', 120),
+					new BossDefinition(15, 'Jr. Balrog', 180)
+				]),
+				new GroupDefinition(2, 'Elnath Mts.', [
+					new BossDefinition(20, 'Eliza', 180),
+					new BossDefinition(21, 'Snowman', 180)
+				]),
+				new GroupDefinition(3, 'Ludus Lake', [
+					new BossDefinition(5, 'Timer', 120),
+					new BossDefinition(16, 'Zeno', 120),
+					new BossDefinition(17, 'Old Fox', 180)
+				]),
+				new GroupDefinition(4, 'Aqua Road', [
+					new BossDefinition(2, 'Seruf', 60)
+				]),
+				new GroupDefinition(5, 'Nihal Desert', [
+					new BossDefinition(1, 'Deo', 60),
+					new BossDefinition(6, 'Kimera', 180)
+				]),
+				new GroupDefinition(6, 'Minar Forest', [
+					new BossDefinition(3, 'Manon', 90),
+					new BossDefinition(7, 'Griffey', 90),
+					new BossDefinition(4, 'Leviathan', 240)
+				]),
+				new GroupDefinition(7, 'Mu Lung Garden', [
+					new BossDefinition(18, 'Tae Roon', 180),
+					new BossDefinition(19, 'King Sage Cat', 180)
+				]),
+				new GroupDefinition(8, 'Zipangu', [
+					new BossDefinition(22, 'Blue Mushmom', 240),
+					new BossDefinition(23, 'Female Boss', 240),
+					new BossDefinition(24, 'Kacchuu Musha', 360)
+				]),
+				new GroupDefinition(9, 'Temple of Time', [
+					new BossDefinition(25, 'Dodo', 240),
+					new BossDefinition(26, 'Lilynouch', 240),
+					new BossDefinition(27, 'Lyka', 240)
+				])
 			];
 
-			const bossDefinitionsCount = bossDefinitions.length;
+			const bossDefinitionsCount = 28; // Note: Hardcoded
 
-			function getBossDefinition() {
+			const bossDefinitions = Array(bossDefinitionsCount);
+
+			for (let i = 0; i < bossTable.length; i++) {
+				const bossGroup = bossTable[i];
+
+				for (let j = 0; j < bossGroup.bossDefinitions.length; j++) {
+					const bossDefinition = bossGroup.bossDefinitions[j];
+
+					if (bossDefinition.bossIndex >= 0 && bossDefinition.bossIndex < bossDefinitionsCount)
+						bossDefinitions[bossDefinition.bossIndex] = bossDefinition;
+				}
+			}
+
+			function getGroupDefinition(groupIndex) {
+				// TODO: Index groupDefinitions array?
+				for (let i = 0; i < bossTable.length; i++) {
+					const groupDefinition = bossTable[i];
+
+					if (groupDefinition.groupIndex == groupIndex)
+						return groupDefinition;
+				}
+
+				return null;
+			}
+
+			function getBossDefinition() { // TODO: Pass bossIndex?
 				// Return default definition
 				if (appState.bossIndex == 0) {
 					const bossDefinition = bossDefinitions[0];
@@ -866,23 +951,78 @@
 					return bossDefinition;
 				}
 
-				if (appState.bossIndex > 0 && appState.bossIndex < bossDefinitions.length)
+				if (appState.bossIndex > 0 && appState.bossIndex < bossDefinitionsCount)
 					return bossDefinitions[appState.bossIndex];
 
 				return null;
 			}
 
-			// TODO: Move this inside a function and call it?
-			const bossDefinitionsSorted = bossDefinitions.slice();
-
-			bossDefinitionsSorted.sort((a, b) => a.order - b.order);
-
-			bossDefinitionsSorted.forEach((bossDefinition, index) => {
+			for (let i = 0; i < bossTable.length; i++) {
+				const groupDefinition = bossTable[i];
 				const option = document.createElement('option');
-				option.value = bossDefinitions.indexOf(bossDefinition);
+				option.value = groupDefinition.groupIndex;
+				option.textContent = groupDefinition.name;
+				groupSelect.appendChild(option);
+			}
+
+			function addBossOption(bossDefinition) {
+				const option = document.createElement('option');
+				option.value = bossDefinition.bossIndex;
 				option.textContent = bossDefinition.name;
 				bossSelect.appendChild(option);
-			});
+			}
+
+			function populateBossSelect(groupIndex) {
+				bossSelect.textContent = '';
+
+				if (groupIndex == 0) {
+					addBossOption(bossDefinitions[0]);
+
+					for (let i = 0; i < appState.favorites.length; i++) {
+						const bossIndex = appState.favorites[i];
+
+						if (bossIndex > 0 && bossIndex < bossDefinitions.length)
+							addBossOption(bossDefinitions[bossIndex]);
+					}
+
+					return;
+				}
+
+				const groupDefinition = getGroupDefinition(groupIndex);
+
+				if (groupDefinition === null)
+					return;
+
+				for (let i = 0; i < groupDefinition.bossDefinitions.length; i++)
+					addBossOption(groupDefinition.bossDefinitions[i]);
+			}
+
+			function getGroupIndex(bossIndex) {
+				if (appState.viewingFavorites && appState.favorites.includes(bossIndex))
+					return 0;
+
+				for (let i = 0; i < bossTable.length; i++) {
+					const groupDefinition = bossTable[i];
+
+					for (let j = 0; j < groupDefinition.bossDefinitions.length; j++) {
+						const bossDefinition = groupDefinition.bossDefinitions[j];
+
+						if (bossDefinition.bossIndex == bossIndex)
+							return groupDefinition.groupIndex;
+					}
+				}
+
+				return 0;
+			}
+
+			function isBossFavorited(bossIndex) {
+				return (bossIndex == 0 || appState.favorites.includes(bossIndex));
+			}
+
+			function updateFavoriteCheckbox() {
+				favoriteGroup.hidden = (appState.bossIndex == 0);
+				favoriteCheckbox.checked = isBossFavorited(appState.bossIndex);
+			}
 
 			/* AppState */
 			const MAX_HISTORY_SIZE = 5;
@@ -1048,6 +1188,9 @@
 
 					for (let i = 0; i < this.bossStates.length; i++)
 						this.bossStates[i] = new BossState();
+
+					this.viewingFavorites = false;
+					this.favorites = [];
 				}
 
 				toJSON() {
@@ -1060,6 +1203,8 @@
 						bossIndex: this.bossIndex,
 						delayMinutes: this.delayMinutes,
 						bossStates: this.bossStates.map(state => state.toJSON()),
+						viewingFavorites: this.viewingFavorites,
+						favorites: this.favorites
 					};
 				}
 
@@ -1092,6 +1237,12 @@
 						for (let i = 0; i < this.bossStates.length && i < json.bossStates.length; i++)
 							this.bossStates[i].fromJSON(json.bossStates[i]);
 					}
+
+					if ('viewingFavorites' in json)
+						this.viewingFavorites = json.viewingFavorites;
+
+					if ('favorites' in json)
+						this.favorites = Array.isArray(json.favorites) ? json.favorites : [];
 				}
 			}
 
@@ -1325,6 +1476,8 @@
 			}
 
 			/* Initialize Inputs */
+			groupSelect.value = getGroupIndex(appState.bossIndex);
+			populateBossSelect(groupSelect.value);
 			bossSelect.value = appState.bossIndex;
 			channelsInput.min = CHANNELS_MIN;
 			channelsInput.max = CHANNELS_MAX;
@@ -1332,6 +1485,7 @@
 			delayRandPercInput.value = appState.delayRandPerc;
 			updateDelayInputsDisabled();
 			updateDelayInputsValue();
+			updateFavoriteCheckbox();
 			formatLocalTimeCheckbox.checked = appState.formatLocalTime;
 			syncModeCheckbox.checked = appState.syncMode;
 
@@ -1682,10 +1836,19 @@
 			setInterval(onTick, 1000);
 
 			/* Config */
+			groupSelect.addEventListener('change', () => {
+				populateBossSelect(groupSelect.value);
+
+				appState.viewingFavorites = (parseInt(groupSelect.value) == 0);
+
+				bossSelect.dispatchEvent(new Event('change'));
+			});
+
 			bossSelect.addEventListener('change', () => {
 				appState.bossIndex = parseInt(bossSelect.value);
 				updateDelayInputsDisabled();
 				updateDelayInputsValue();
+				updateFavoriteCheckbox();
 
 				if (appState.syncMode) {
 					remoteBossState.clear();
@@ -1709,6 +1872,32 @@
 
 			delayHoursInput.addEventListener('change', onDelayInputChanged);
 			delayMinutesInput.addEventListener('change', onDelayInputChanged);
+
+			function toggleFavorite() {
+				const bossIndex = appState.bossIndex;
+
+				if (bossIndex == 0)
+					return;
+
+				const indexOf = appState.favorites.indexOf(bossIndex);
+
+				if (indexOf == -1) {
+					appState.favorites.push(bossIndex);
+					appState.favorites.sort((a, b) => a - b);
+				} else {
+					appState.favorites.splice(indexOf, 1);
+
+					if (parseInt(groupSelect.value) == 0) { // TODO: Add appState.viewingFavorites?
+						populateBossSelect(0);
+						bossSelect.value = 0;
+						bossSelect.dispatchEvent(new Event('change'));
+					}
+				}
+
+				saveAppState();
+			}
+
+			favoriteCheckbox.addEventListener('change', toggleFavorite);
 
 			/* Tools */
 			function buildShareUrl() {
