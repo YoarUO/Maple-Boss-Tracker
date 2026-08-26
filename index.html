@@ -843,6 +843,166 @@
 			animation-delay: 7s;
 			--drift: -10px;
 		}
+
+		.leaves-container {
+			display: none;
+			position: fixed;
+			inset: 0;
+			overflow: hidden;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		[data-theme="forest"] .leaves-container {
+			display: block;
+		}
+
+		.leaf {
+			position: absolute;
+			top: -60px;
+			width: 14px;
+			height: 14px;
+			background: var(--leaf-color, var(--maple-gold));
+			border-radius: 0% 70% 0% 70%;
+			/* gives it a leaf-like teardrop shape */
+			opacity: 0.75;
+			animation: leaf-fall linear infinite;
+		}
+
+		@keyframes leaf-fall {
+			0% {
+				transform: translateY(0) translateX(0) rotate(0deg);
+				opacity: 0;
+			}
+
+			10% {
+				opacity: 0.75;
+			}
+
+			50% {
+				transform: translateY(50vh) translateX(var(--drift, 60px)) rotate(180deg);
+			}
+
+			90% {
+				opacity: 0.6;
+			}
+
+			100% {
+				transform: translateY(110vh) translateX(var(--drift-end, -40px)) rotate(360deg);
+				opacity: 0;
+			}
+		}
+
+		/* 10 leaves — different sizes, colors (drawn from the forest palette), timing, and drift */
+		.leaf:nth-child(1) {
+			left: 6%;
+			width: 16px;
+			height: 16px;
+			--leaf-color: var(--maple-gold);
+			animation-duration: 13s;
+			animation-delay: 0s;
+			--drift: 50px;
+			--drift-end: -30px;
+		}
+
+		.leaf:nth-child(2) {
+			left: 16%;
+			width: 10px;
+			height: 10px;
+			--leaf-color: var(--warning-orange);
+			animation-duration: 10s;
+			animation-delay: 2s;
+			--drift: -40px;
+			--drift-end: 60px;
+		}
+
+		.leaf:nth-child(3) {
+			left: 26%;
+			width: 20px;
+			height: 20px;
+			--leaf-color: var(--success-green);
+			animation-duration: 16s;
+			animation-delay: 5s;
+			--drift: 70px;
+			--drift-end: -20px;
+		}
+
+		.leaf:nth-child(4) {
+			left: 38%;
+			width: 12px;
+			height: 12px;
+			--leaf-color: var(--maple-gold-dim);
+			animation-duration: 11s;
+			animation-delay: 1s;
+			--drift: -60px;
+			--drift-end: 40px;
+		}
+
+		.leaf:nth-child(5) {
+			left: 50%;
+			width: 18px;
+			height: 18px;
+			--leaf-color: var(--maple-gold);
+			animation-duration: 14s;
+			animation-delay: 6s;
+			--drift: 40px;
+			--drift-end: -50px;
+		}
+
+		.leaf:nth-child(6) {
+			left: 60%;
+			width: 11px;
+			height: 11px;
+			--leaf-color: var(--danger-red);
+			animation-duration: 9s;
+			animation-delay: 3s;
+			--drift: -50px;
+			--drift-end: 30px;
+		}
+
+		.leaf:nth-child(7) {
+			left: 70%;
+			width: 17px;
+			height: 17px;
+			--leaf-color: var(--success-green);
+			animation-duration: 15s;
+			animation-delay: 4s;
+			--drift: 60px;
+			--drift-end: -40px;
+		}
+
+		.leaf:nth-child(8) {
+			left: 80%;
+			width: 13px;
+			height: 13px;
+			--leaf-color: var(--warning-orange);
+			animation-duration: 12s;
+			animation-delay: 7s;
+			--drift: -30px;
+			--drift-end: 50px;
+		}
+
+		.leaf:nth-child(9) {
+			left: 90%;
+			width: 21px;
+			height: 21px;
+			--leaf-color: var(--maple-gold);
+			animation-duration: 17s;
+			animation-delay: 2.5s;
+			--drift: 30px;
+			--drift-end: -60px;
+		}
+
+		.leaf:nth-child(10) {
+			left: 96%;
+			width: 9px;
+			height: 9px;
+			--leaf-color: var(--maple-gold-dim);
+			animation-duration: 8s;
+			animation-delay: 8s;
+			--drift: -20px;
+			--drift-end: 20px;
+		}
 	</style>
 </head>
 
@@ -858,6 +1018,19 @@
 		<div class="bubble"></div>
 		<div class="bubble"></div>
 		<div class="bubble"></div>
+	</div>
+
+	<div class="leaves-container" aria-hidden="true">
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
+		<div class="leaf"></div>
 	</div>
 
 	<div class="header-container">
