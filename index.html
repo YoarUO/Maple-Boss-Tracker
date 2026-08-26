@@ -234,8 +234,8 @@
 			--text-primary: #e3ecdf;
 			--text-secondary: #9db89a;
 			--text-muted: #647f65;
-			--maple-gold: #6fbf5e;
-			--maple-gold-dim: #427a37;
+			--maple-gold: #e3b341;
+			--maple-gold-dim: #8a6a24;
 			--warning-orange: #d9a441;
 			--warning-glow: rgba(217, 164, 65, 0.18);
 			--success-green: #52c97a;
@@ -795,9 +795,9 @@
 		</dialog>
 
 		<script type="module">
-			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-			import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-			import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+			import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+			import {getFirestore, doc, getDoc, setDoc, collection, onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+			import {getAuth, signInAnonymously} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
 			const firebaseConfig = {
 				apiKey: "AIzaSyDPrVhDm9TOj9UUZi0qB66QQD6acGZCUtw",
@@ -814,7 +814,7 @@
 
 			try {
 				await signInAnonymously(auth);
-				window.__firebase = { db, doc, getDoc, setDoc, collection, onSnapshot };
+				window.__firebase = {db, doc, getDoc, setDoc, collection, onSnapshot};
 				window.onFirebaseReady?.();
 			} catch (error) {
 				console.error('Firebase init failed:', error);
@@ -1444,7 +1444,7 @@
 				} else {
 					for (let i = 0; i < MAX_HISTORY_SIZE && i < historyItems.length; i++) {
 						const historyDialogItem = historyDialogItems[i];
-						historyDialogItem.textContent = (historyItems[i] === null ? '—' : historyItems[i].toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }));
+						historyDialogItem.textContent = (historyItems[i] === null ? '—' : historyItems[i].toLocaleString(undefined, {dateStyle: 'medium', timeStyle: 'short'}));
 						historyDialogList.appendChild(historyDialogItem);
 					}
 				}
@@ -1609,13 +1609,13 @@
 					}
 
 					if (respawnAvgLabel)
-						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnAvgLabel.textContent = `Expected Respawn: ${respawnAvgTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (respawnMinLabel)
-						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnMinLabel.textContent = `Min Respawn: ${respawnMinTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (respawnMaxLabel)
-						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, {timeStyle: 'short'})}`;
 
 					if (countdownLabel) {
 						if (timeRemaining <= -2 * delayRandMs) {
@@ -1792,7 +1792,7 @@
 					const now = new Date();
 					const timeRemaining = respawnMinTime.getTime() - now.getTime();
 
-					list.push({ channel: i + 1, timeRemaining: timeRemaining })
+					list.push({channel: i + 1, timeRemaining: timeRemaining})
 				}
 
 				if (list.length == 0)
@@ -1911,11 +1911,11 @@
 					const copyLinkButton = document.getElementById('copyLinkButton');
 					const original = copyLinkButton.textContent;
 					copyLinkButton.textContent = 'Copied!';
-					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
+					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyLinkButton.textContent = 'Failed!';
-					setTimeout(() => { copyLinkButton.textContent = original; }, 1200);
+					setTimeout(() => {copyLinkButton.textContent = original;}, 1200);
 				});
 			}
 
@@ -1949,11 +1949,11 @@
 				navigator.clipboard.writeText(text).then(() => {
 					const original = copyTimersButton.textContent;
 					copyTimersButton.textContent = 'Copied!';
-					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
 				}).catch((error) => {
 					console.warn('Clipboard write failed:', error);
 					copyTimersButton.textContent = 'Failed!';
-					setTimeout(() => { copyTimersButton.textContent = original; }, 1200);
+					setTimeout(() => {copyTimersButton.textContent = original;}, 1200);
 				});
 			}
 
