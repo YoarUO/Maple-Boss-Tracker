@@ -853,7 +853,8 @@
 			z-index: 0;
 		}
 
-		[data-theme="forest"] .leaves-container {
+		[data-theme="forest"] .leaves-container,
+		[data-theme="autumn"] .leaves-container {
 			display: block;
 		}
 
@@ -1003,6 +1004,216 @@
 			--drift: -20px;
 			--drift-end: 20px;
 		}
+
+		[data-theme="autumn"] .leaf:nth-child(1) {
+			--leaf-color: #c1440e;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(2) {
+			--leaf-color: #e08a3c;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(3) {
+			--leaf-color: #a8672a;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(4) {
+			--leaf-color: #8b3a1f;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(5) {
+			--leaf-color: #d9a441;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(6) {
+			--leaf-color: #9c5a2e;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(7) {
+			--leaf-color: #c1440e;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(8) {
+			--leaf-color: #e0a33c;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(9) {
+			--leaf-color: #8a6c52;
+		}
+
+		[data-theme="autumn"] .leaf:nth-child(10) {
+			--leaf-color: #a8672a;
+		}
+
+		.sand-container {
+			display: none;
+			position: fixed;
+			inset: 0;
+			overflow: hidden;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		[data-theme="desert"] .sand-container {
+			display: block;
+		}
+
+		.grain {
+			position: absolute;
+			left: -5vw;
+			border-radius: 50%;
+			background: var(--grain-color, #e0c896);
+			animation: sand-blow linear infinite;
+		}
+
+		@keyframes sand-blow {
+			0% {
+				transform: translateX(0) translateY(0);
+				opacity: 0;
+			}
+
+			8% {
+				opacity: 0.7;
+			}
+
+			35% {
+				transform: translateX(45vw) translateY(var(--wobble-1, 15px));
+			}
+
+			65% {
+				transform: translateX(75vw) translateY(var(--wobble-2, -10px));
+			}
+
+			92% {
+				opacity: 0.5;
+			}
+
+			100% {
+				transform: translateX(115vw) translateY(var(--wobble-3, 8px));
+				opacity: 0;
+			}
+		}
+
+		/* 10 grains — varied top offset, size, sandy color, speed, and wobble */
+		.grain:nth-child(1) {
+			top: 8%;
+			width: 4px;
+			height: 4px;
+			--grain-color: #e0c896;
+			animation-duration: 7s;
+			animation-delay: 0s;
+			--wobble-1: 20px;
+			--wobble-2: -12px;
+			--wobble-3: 10px;
+		}
+
+		.grain:nth-child(2) {
+			top: 18%;
+			width: 6px;
+			height: 6px;
+			--grain-color: #c9a876;
+			animation-duration: 9s;
+			animation-delay: 1.5s;
+			--wobble-1: -15px;
+			--wobble-2: 18px;
+			--wobble-3: -8px;
+		}
+
+		.grain:nth-child(3) {
+			top: 28%;
+			width: 3px;
+			height: 3px;
+			--grain-color: #e0a33c;
+			animation-duration: 6s;
+			animation-delay: 3s;
+			--wobble-1: 12px;
+			--wobble-2: -18px;
+			--wobble-3: 14px;
+		}
+
+		.grain:nth-child(4) {
+			top: 40%;
+			width: 5px;
+			height: 5px;
+			--grain-color: #a87a2a;
+			animation-duration: 8.5s;
+			animation-delay: 0.5s;
+			--wobble-1: -20px;
+			--wobble-2: 10px;
+			--wobble-3: -14px;
+		}
+
+		.grain:nth-child(5) {
+			top: 50%;
+			width: 4px;
+			height: 4px;
+			--grain-color: #f3e4c8;
+			animation-duration: 7.5s;
+			animation-delay: 4s;
+			--wobble-1: 18px;
+			--wobble-2: -14px;
+			--wobble-3: 10px;
+		}
+
+		.grain:nth-child(6) {
+			top: 60%;
+			width: 7px;
+			height: 7px;
+			--grain-color: #c9a876;
+			animation-duration: 10s;
+			animation-delay: 2s;
+			--wobble-1: -10px;
+			--wobble-2: 16px;
+			--wobble-3: -12px;
+		}
+
+		.grain:nth-child(7) {
+			top: 70%;
+			width: 3px;
+			height: 3px;
+			--grain-color: #e0c896;
+			animation-duration: 6.5s;
+			animation-delay: 5s;
+			--wobble-1: 14px;
+			--wobble-2: -10px;
+			--wobble-3: 16px;
+		}
+
+		.grain:nth-child(8) {
+			top: 80%;
+			width: 5px;
+			height: 5px;
+			--grain-color: #a87a2a;
+			animation-duration: 8s;
+			animation-delay: 1s;
+			--wobble-1: -18px;
+			--wobble-2: 12px;
+			--wobble-3: -10px;
+		}
+
+		.grain:nth-child(9) {
+			top: 88%;
+			width: 4px;
+			height: 4px;
+			--grain-color: #e0a33c;
+			animation-duration: 9.5s;
+			animation-delay: 3.5s;
+			--wobble-1: 10px;
+			--wobble-2: -16px;
+			--wobble-3: 12px;
+		}
+
+		.grain:nth-child(10) {
+			top: 94%;
+			width: 6px;
+			height: 6px;
+			--grain-color: #f3e4c8;
+			animation-duration: 7s;
+			animation-delay: 6s;
+			--wobble-1: -14px;
+			--wobble-2: 10px;
+			--wobble-3: -8px;
+		}
 	</style>
 </head>
 
@@ -1031,6 +1242,19 @@
 		<div class="leaf"></div>
 		<div class="leaf"></div>
 		<div class="leaf"></div>
+	</div>
+
+	<div class="sand-container" aria-hidden="true">
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
+		<div class="grain"></div>
 	</div>
 
 	<div class="header-container">
