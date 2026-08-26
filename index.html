@@ -20,10 +20,12 @@
 		const themeDefinitions = [
 			new themeDefinition('light', '☀️', false),
 			new themeDefinition('dark', '🌙', false),
+			new themeDefinition('forest', '🌳', true),
 			new themeDefinition('autumn', '🍂', true),
+			new themeDefinition('winter', '❄️', true),
+			new themeDefinition('sakura', '🌸', true),
 			new themeDefinition('desert', '🌵', true),
-			new themeDefinition('aqua', '🐠', true),
-			new themeDefinition('forest', '🌳', true)
+			new themeDefinition('aqua', '🐠', true)
 		];
 
 		function findThemeIndex(themeName) {
@@ -253,6 +255,68 @@
 			background-image:
 				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(111, 191, 94, 0.08), transparent),
 				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(82, 201, 122, 0.06), transparent);
+		}
+
+		[data-theme="sakura"] {
+			--bg-void: #1a1420;
+			--bg-panel: #241a2c;
+			--bg-card: #2b1f34;
+			--bg-input: #1f1727;
+			--hairline: #4a3352;
+			--hairline-soft: #3a2842;
+			--text-primary: #f7e8ef;
+			--text-secondary: #cca3bc;
+			--text-muted: #8a6c81;
+			--maple-gold: #f2a6c7;
+			--maple-gold-dim: #b97a95;
+			--warning-orange: #f5b26b;
+			--warning-glow: rgba(245, 178, 107, 0.18);
+			--success-green: #8bd9a8;
+			--success-glow: rgba(139, 217, 168, 0.18);
+			--danger-red: #e0607a;
+			--danger-glow: rgba(224, 96, 122, 0.18);
+			--bg-button: #2f2137;
+			--bg-button-hover: #3d2a47;
+			--clear-hover-bg: #3a1820;
+			--clear-hover-border: #b6413a;
+			--clear-hover-text: #f28b82;
+		}
+
+		[data-theme="sakura"] body {
+			background-image:
+				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(242, 166, 199, 0.10), transparent),
+				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(139, 217, 168, 0.05), transparent);
+		}
+
+		[data-theme="winter"] {
+			--bg-void: #eef4f9;
+			--bg-panel: #ffffff;
+			--bg-card: #f7fafc;
+			--bg-input: #ffffff;
+			--hairline: #cfe0ec;
+			--hairline-soft: #dfeaf3;
+			--text-primary: #1c2b38;
+			--text-secondary: #48657a;
+			--text-muted: #7d97a8;
+			--maple-gold: #3a8fc7;
+			--maple-gold-dim: #7bb8dd;
+			--warning-orange: #b8720c;
+			--warning-glow: rgba(184, 114, 12, 0.14);
+			--success-green: #1f8f5f;
+			--success-glow: rgba(31, 143, 95, 0.14);
+			--danger-red: #c23b4a;
+			--danger-glow: rgba(194, 59, 74, 0.14);
+			--bg-button: #ffffff;
+			--bg-button-hover: #e4eef5;
+			--clear-hover-bg: #fbe9ea;
+			--clear-hover-border: #d9757e;
+			--clear-hover-text: #b0303f;
+		}
+
+		[data-theme="winter"] body {
+			background-image:
+				radial-gradient(ellipse 900px 500px at 15% -10%, rgba(58, 143, 199, 0.08), transparent),
+				radial-gradient(ellipse 700px 500px at 100% 0%, rgba(191, 224, 242, 0.10), transparent);
 		}
 
 		* {
@@ -1215,9 +1279,329 @@
 			--wobble-3: -8px;
 		}
 
+		.petals-container {
+			display: none;
+			position: fixed;
+			inset: 0;
+			overflow: hidden;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		[data-theme="sakura"] .petals-container {
+			display: block;
+		}
+
+		.petal {
+			position: absolute;
+			top: -60px;
+			width: 14px;
+			height: 11px;
+			background: var(--petal-color, #f2a6c7);
+			border-radius: 50% 10% 50% 10%;
+			/* soft petal shape */
+			opacity: 0.8;
+			animation: petal-fall linear infinite;
+		}
+
+		@keyframes petal-fall {
+			0% {
+				transform: translateY(0) translateX(0) rotate(0deg);
+				opacity: 0;
+			}
+
+			10% {
+				opacity: 0.8;
+			}
+
+			50% {
+				transform: translateY(50vh) translateX(var(--drift, 60px)) rotate(160deg);
+			}
+
+			90% {
+				opacity: 0.6;
+			}
+
+			100% {
+				transform: translateY(110vh) translateX(var(--drift-end, -40px)) rotate(320deg);
+				opacity: 0;
+			}
+		}
+
+		/* 10 petals — varied sizes, blossom pinks, timing, and drift */
+		.petal:nth-child(1) {
+			left: 5%;
+			width: 15px;
+			height: 12px;
+			--petal-color: #f7c3dc;
+			animation-duration: 13s;
+			animation-delay: 0s;
+			--drift: 55px;
+			--drift-end: -30px;
+		}
+
+		.petal:nth-child(2) {
+			left: 15%;
+			width: 10px;
+			height: 8px;
+			--petal-color: #f2a6c7;
+			animation-duration: 10s;
+			animation-delay: 2s;
+			--drift: -45px;
+			--drift-end: 60px;
+		}
+
+		.petal:nth-child(3) {
+			left: 25%;
+			width: 18px;
+			height: 14px;
+			--petal-color: #fbd7e8;
+			animation-duration: 16s;
+			animation-delay: 5s;
+			--drift: 70px;
+			--drift-end: -25px;
+		}
+
+		.petal:nth-child(4) {
+			left: 37%;
+			width: 11px;
+			height: 9px;
+			--petal-color: #e07fa8;
+			animation-duration: 11s;
+			animation-delay: 1s;
+			--drift: -60px;
+			--drift-end: 40px;
+		}
+
+		.petal:nth-child(5) {
+			left: 49%;
+			width: 16px;
+			height: 13px;
+			--petal-color: #f2a6c7;
+			animation-duration: 14s;
+			animation-delay: 6s;
+			--drift: 40px;
+			--drift-end: -55px;
+		}
+
+		.petal:nth-child(6) {
+			left: 59%;
+			width: 9px;
+			height: 7px;
+			--petal-color: #b97a95;
+			animation-duration: 9s;
+			animation-delay: 3s;
+			--drift: -50px;
+			--drift-end: 30px;
+		}
+
+		.petal:nth-child(7) {
+			left: 69%;
+			width: 17px;
+			height: 13px;
+			--petal-color: #f7c3dc;
+			animation-duration: 15s;
+			animation-delay: 4s;
+			--drift: 65px;
+			--drift-end: -40px;
+		}
+
+		.petal:nth-child(8) {
+			left: 79%;
+			width: 12px;
+			height: 10px;
+			--petal-color: #fbd7e8;
+			animation-duration: 12s;
+			animation-delay: 7s;
+			--drift: -35px;
+			--drift-end: 50px;
+		}
+
+		.petal:nth-child(9) {
+			left: 89%;
+			width: 20px;
+			height: 15px;
+			--petal-color: #f2a6c7;
+			animation-duration: 17s;
+			animation-delay: 2.5s;
+			--drift: 30px;
+			--drift-end: -60px;
+		}
+
+		.petal:nth-child(10) {
+			left: 96%;
+			width: 8px;
+			height: 6px;
+			--petal-color: #e07fa8;
+			animation-duration: 8s;
+			animation-delay: 8s;
+			--drift: -20px;
+			--drift-end: 20px;
+		}
+
+		.snow-container {
+			display: none;
+			position: fixed;
+			inset: 0;
+			overflow: hidden;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		[data-theme="winter"] .snow-container {
+			display: block;
+		}
+
+		.snowflake {
+			position: absolute;
+			top: -20px;
+			border-radius: 50%;
+			background: var(--flake-color, #ffffff);
+			box-shadow: 0 0 4px rgba(58, 143, 199, 0.35);
+			opacity: 0.9;
+			animation: snow-fall linear infinite;
+		}
+
+		@keyframes snow-fall {
+			0% {
+				transform: translateY(0) translateX(0);
+				opacity: 0;
+			}
+
+			10% {
+				opacity: 0.85;
+			}
+
+			50% {
+				transform: translateY(55vh) translateX(var(--drift, 25px));
+			}
+
+			90% {
+				opacity: 0.6;
+			}
+
+			100% {
+				transform: translateY(110vh) translateX(var(--drift-end, -20px));
+				opacity: 0;
+			}
+		}
+
+		/* 10 snowflakes — varied sizes, icy tints, timing, and drift */
+		.snowflake:nth-child(1) {
+			left: 3%;
+			width: 6px;
+			height: 6px;
+			--flake-color: #ffffff;
+			animation-duration: 11s;
+			animation-delay: 0s;
+			--drift: 20px;
+			--drift-end: -15px;
+		}
+
+		.snowflake:nth-child(2) {
+			left: 13%;
+			width: 3px;
+			height: 3px;
+			--flake-color: #7bb8dd;
+			animation-duration: 8s;
+			animation-delay: 2s;
+			--drift: -18px;
+			--drift-end: 25px;
+		}
+
+		.snowflake:nth-child(3) {
+			left: 23%;
+			width: 8px;
+			height: 8px;
+			--flake-color: #3a8fc7;
+			animation-duration: 14s;
+			animation-delay: 4s;
+			--drift: 30px;
+			--drift-end: -10px;
+		}
+
+		.snowflake:nth-child(4) {
+			left: 35%;
+			width: 4px;
+			height: 4px;
+			--flake-color: #ffffff;
+			animation-duration: 9s;
+			animation-delay: 1s;
+			--drift: -25px;
+			--drift-end: 18px;
+		}
+
+		.snowflake:nth-child(5) {
+			left: 47%;
+			width: 7px;
+			height: 7px;
+			--flake-color: #7bb8dd;
+			animation-duration: 13s;
+			animation-delay: 6s;
+			--drift: 15px;
+			--drift-end: -22px;
+		}
+
+		.snowflake:nth-child(6) {
+			left: 57%;
+			width: 3px;
+			height: 3px;
+			--flake-color: #3a8fc7;
+			animation-duration: 7s;
+			animation-delay: 3s;
+			--drift: -20px;
+			--drift-end: 12px;
+		}
+
+		.snowflake:nth-child(7) {
+			left: 67%;
+			width: 6px;
+			height: 6px;
+			--flake-color: #ffffff;
+			animation-duration: 12s;
+			animation-delay: 5s;
+			--drift: 25px;
+			--drift-end: -18px;
+		}
+
+		.snowflake:nth-child(8) {
+			left: 77%;
+			width: 5px;
+			height: 5px;
+			--flake-color: #7bb8dd;
+			animation-duration: 10s;
+			animation-delay: 7s;
+			--drift: -15px;
+			--drift-end: 20px;
+		}
+
+		.snowflake:nth-child(9) {
+			left: 87%;
+			width: 9px;
+			height: 9px;
+			--flake-color: #3a8fc7;
+			animation-duration: 15s;
+			animation-delay: 2.5s;
+			--drift: 12px;
+			--drift-end: -25px;
+		}
+
+		.snowflake:nth-child(10) {
+			left: 95%;
+			width: 4px;
+			height: 4px;
+			--flake-color: #ffffff;
+			animation-duration: 6.5s;
+			animation-delay: 8s;
+			--drift: -10px;
+			--drift-end: 10px;
+		}
+
 		body.theme-effects-disabled .bubbles-container,
 		body.theme-effects-disabled .leaves-container,
-		body.theme-effects-disabled .sand-container {
+		body.theme-effects-disabled .sand-container,
+		body.theme-effects-disabled .petals-container,
+		body.theme-effects-disabled .snow-container {
 			display: none !important;
 		}
 	</style>
@@ -1261,6 +1645,32 @@
 		<div class="grain"></div>
 		<div class="grain"></div>
 		<div class="grain"></div>
+	</div>
+
+	<div class="petals-container" aria-hidden="true">
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+		<div class="petal"></div>
+	</div>
+
+	<div class="snow-container" aria-hidden="true">
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
+		<div class="snowflake"></div>
 	</div>
 
 	<div class="header-container">
