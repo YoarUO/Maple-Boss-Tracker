@@ -1214,6 +1214,12 @@
 			--wobble-2: 10px;
 			--wobble-3: -8px;
 		}
+
+		body.theme-effects-disabled .bubbles-container,
+		body.theme-effects-disabled .leaves-container,
+		body.theme-effects-disabled .sand-container {
+			display: none !important;
+		}
 	</style>
 </head>
 
@@ -1290,6 +1296,10 @@
 				<div class="form-group checkbox-group">
 					<input type="checkbox" id="syncModeCheckbox" class="styled-checkbox">
 					<label for="syncModeCheckbox" class="checkbox-label">Sync Mode</label>
+				</div>
+				<div class="form-group checkbox-group">
+					<input type="checkbox" id="themeEffectsCheckbox" class="styled-checkbox">
+					<label for="themeEffectsCheckbox" class="checkbox-label">Theme Effects</label>
 				</div>
 			</div>
 		</div>
@@ -1384,6 +1394,7 @@
 			const timersContainer = document.getElementById('timerContainer');
 			const formatLocalTimeCheckbox = document.getElementById('formatLocalTimeCheckbox');
 			const syncModeCheckbox = document.getElementById('syncModeCheckbox');
+			const themeEffectsCheckbox = document.getElementById('themeEffectsCheckbox');
 			const historyDialog = document.getElementById('historyDialog');
 			const historyDialogTitle = document.getElementById('historyDialogTitle');
 			const historyDialogClose = document.getElementById('historyDialogClose');
@@ -1734,6 +1745,7 @@
 
 					this.viewingFavorites = false;
 					this.favorites = [];
+					this.themeEffectsEnabled = true;
 				}
 
 				toJSON() {
@@ -1747,7 +1759,8 @@
 						delayMinutes: this.delayMinutes,
 						bossStates: this.bossStates.map(state => state.toJSON()),
 						viewingFavorites: this.viewingFavorites,
-						favorites: this.favorites
+						favorites: this.favorites,
+						themeEffectsEnabled: this.themeEffectsEnabled
 					};
 				}
 
@@ -1786,6 +1799,9 @@
 
 					if ('favorites' in json)
 						this.favorites = Array.isArray(json.favorites) ? json.favorites : [];
+
+					if ('themeEffectsEnabled' in json)
+						this.themeEffectsEnabled = json.themeEffectsEnabled;
 				}
 			}
 
@@ -2018,6 +2034,10 @@
 				delayMinutesInput.value = delayMinutes % 60;
 			}
 
+			function applyThemeEffectsSetting() {
+				document.body.classList.toggle('theme-effects-disabled', !appState.themeEffectsEnabled);
+			}
+
 			/* Initialize Inputs */
 			groupSelect.value = getGroupIndex(appState.bossIndex);
 			populateBossSelect(groupSelect.value);
@@ -2031,6 +2051,8 @@
 			updateFavoriteCheckbox();
 			formatLocalTimeCheckbox.checked = appState.formatLocalTime;
 			syncModeCheckbox.checked = appState.syncMode;
+			themeEffectsCheckbox.checked = appState.themeEffectsEnabled;
+			applyThemeEffectsSetting();
 
 			/* Utility Functions */
 			function clamp(value, min, max) {
@@ -2626,6 +2648,12 @@
 						firestoreUnsubscribeHandler();
 				}
 
+				saveAppState();
+			});
+
+			themeEffectsCheckbox.addEventListener('change', () => {
+				appState.themeEffectsEnabled = themeEffectsCheckbox.checked;
+				applyThemeEffectsSetting();
 				saveAppState();
 			});
 		</script>
