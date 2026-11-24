@@ -1696,7 +1696,8 @@
 				</div>
 				<div class="form-group">
 					<label for="delayRandPercInput" class="main-label">Randomization</label>
-					<input type="number" id="delayRandPercInput" class="input-random" min="0" max="100" step="1" value="15">
+					<input type="number" id="delayRandPercInput" class="input-random" min="0" max="100" step="1"
+						value="15">
 					<span class="time-unit-label">%</span>
 				</div>
 				<div class="form-group checkbox-group">
@@ -1752,7 +1753,8 @@
 		<dialog id="historyDialog" class="history-dialog">
 			<div class="history-dialog-header">
 				<span class="history-dialog-title" id="historyDialogTitle">History</span>
-				<button type="button" class="history-dialog-close" id="historyDialogClose" aria-label="Close">&times;</button>
+				<button type="button" class="history-dialog-close" id="historyDialogClose"
+					aria-label="Close">&times;</button>
 			</div>
 			<ul class="history-dialog-list" id="historyDialogList"></ul>
 		</dialog>
@@ -2515,6 +2517,21 @@
 					return formatTime(time);
 			}
 
+			function formatDelayLabel(delayMinutes) {
+				const hours = Math.floor(delayMinutes / 60);
+				const minutes = delayMinutes % 60;
+
+				const parts = [];
+
+				if (hours > 0)
+					parts.push(`${hours} hr`);
+
+				if (minutes > 0)
+					parts.push(`${minutes} min`);
+
+				return parts.join(' ');
+			}
+
 			/* Main Functions */
 			const COUNTDOWN_STAGES = ['is-soon', 'is-ready', 'is-spawned'];
 			const SOON_THRESHOLD_MS = 300000;
@@ -2530,6 +2547,7 @@
 				const respawnMinLabel = timerContainer.querySelector(`#respawnMinLabel-${channelIndex}`);
 				const respawnMaxLabel = timerContainer.querySelector(`#respawnMaxLabel-${channelIndex}`);
 				const countdownLabel = timerContainer.querySelector(`#countdownLabel-${channelIndex}`);
+				const elapsedLabel = timerContainer.querySelector(`#elapsedLabel-${channelIndex}`);
 
 				if (bossEntry !== null && qmarkButton) {
 					if (bossEntry.qmark) {
@@ -2561,6 +2579,9 @@
 					if (countdownLabel)
 						countdownLabel.textContent = '';
 
+					if (elapsedLabel)
+						elapsedLabel.textContent = '';
+
 					toggleClass(timerContainer, COUNTDOWN_STAGES, -1);
 				}
 				else {
@@ -2591,6 +2612,15 @@
 
 					if (respawnMaxLabel)
 						respawnMaxLabel.textContent = `Max Respawn: ${respawnMaxTime.toLocaleTimeString(undefined, { timeStyle: 'short' })}`;
+
+					if (elapsedLabel) {
+						const elapsedMs = Math.max(0, now.getTime() - pressTime.getTime());
+
+						if (elapsedMs > delayMs)
+							elapsedLabel.textContent = `Time Elapsed: >${formatDelayLabel(delayMinutes)}`;
+						else
+							elapsedLabel.textContent = `Time Elapsed: ${formatTime(elapsedMs)}`;
+					}
 
 					if (countdownLabel) {
 						if (timeRemaining <= -2 * delayRandMs) {
@@ -2660,6 +2690,10 @@
 				respawnMaxLabel.id = `respawnMaxLabel-${channelIndex}`;
 				respawnMaxLabel.className = 'range-label';
 
+				const elapsedLabel = document.createElement('span');
+				elapsedLabel.id = `elapsedLabel-${channelIndex}`;
+				elapsedLabel.className = 'range-label';
+
 				recordButton.addEventListener('click', () => {
 					setPressTime(channelIndex, new Date());
 					setQmark(channelIndex, false);
@@ -2720,6 +2754,7 @@
 				timerContainer.appendChild(respawnAvgLabel);
 				timerContainer.appendChild(respawnMinLabel);
 				timerContainer.appendChild(respawnMaxLabel);
+				timerContainer.appendChild(elapsedLabel);
 
 				return timerContainer;
 			}
